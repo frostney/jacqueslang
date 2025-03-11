@@ -1,0 +1,16 @@
+# Run tests
+name: Run Tests
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-bun@v1
+      - run: bun install
+      - run: bun test
