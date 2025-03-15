@@ -24,6 +24,7 @@ import type {
   UnaryExpressionNode,
   BinaryExpressionNode,
   WhileStatementNode,
+  UpdateExpressionNode,
 } from "./ASTNode";
 
 import { TokenType } from "./Token";
@@ -90,12 +91,12 @@ export class Parser {
 
   // Statement
   private statement(): ASTNode {
-    if (this.match(TokenType.FUNCTION)) {
+    if (this.match(TokenType.IF)) {
+      return this.ifStatement();
+    } else if (this.match(TokenType.FUNCTION)) {
       return this.functionDeclaration();
     } else if (this.match(TokenType.CLASS)) {
       return this.classDeclaration();
-    } else if (this.match(TokenType.IF)) {
-      return this.ifStatement();
     } else if (this.match(TokenType.WHILE)) {
       return this.whileStatement();
     } else if (this.match(TokenType.RETURN)) {
@@ -627,7 +628,19 @@ export class Parser {
       case TokenType.BOOLEAN:
         return this.booleanLiteral();
       case TokenType.IDENTIFIER:
-        return this.identifier();
+        const identifier = this.identifier();
+
+        // Check for increment operator
+        if (this.match(TokenType.INCREMENT)) {
+          return {
+            type: "UpdateExpression",
+            operator: "++",
+            argument: identifier,
+            prefix: false,
+          } as UpdateExpressionNode;
+        }
+
+        return identifier;
       case TokenType.AT:
         // Handle @ prefix for instance property access
         this.eat(TokenType.AT);
@@ -1042,11 +1055,176 @@ export class Parser {
         body.push(this.constructorDefinition());
       } else if (this.match(TokenType.PROPERTY)) {
         body.push(this.propertyDeclaration());
-      } else if (
-        this.match(TokenType.STATIC) ||
-        this.match(TokenType.PRIVATE) ||
-        this.match(TokenType.CONST)
-      ) {
+      } else if (this.match(TokenType.STATIC)) {
+        // Handle static methods or properties
+        this.eat(TokenType.STATIC);
+
+        // Check if it's a method or property
+        if (this.match(TokenType.IDENTIFIER)) {
+          const identifier = this.identifier();
+
+          if (this.match(TokenType.LPAREN)) {
+            // It's a static method
+            const params = this.functionParameters();
+            const methodBody = this.functionBody();
+
+            body.push({
+              type: "MethodDefinition",
+              name: identifier,
+              function: {
+                type: "FunctionDeclaration",
+                name: null,
+                params,
+                body: methodBody,
+              },
+              isStatic: true,
+              isConstructor: false,
+              isPrivate: false,
+              isProtected: false,
+            } as MethodDefinitionNode);
+          } else if (
+            this.match(TokenType.ASSIGN) ||
+            this.match(TokenType.CONST_ASSIGN)
+          ) {
+            // It's a static property
+            const isConstant = this.match(TokenType.CONST_ASSIGN);
+            this.eat(isConstant ? TokenType.CONST_ASSIGN : TokenType.ASSIGN);
+
+            const value = this.expression();
+            this.optionalSemicolon();
+
+            body.push({
+              type: "PropertyDefinition",
+              name: identifier,
+              value,
+              isStatic: true,
+              isPrivate: false,
+              isProtected: false,
+              isConstant,
+            } as PropertyDefinitionNode);
+          } else {
+            throw new Error(
+              `Expected '(' or '=' after static identifier at line ${this.currentToken.line}, column ${this.currentToken.column}`
+            );
+          }
+        } else {
+          throw new Error(
+            `Expected identifier after 'static' keyword at line ${this.currentToken.line}, column ${this.currentToken.column}`
+          );
+        }
+      } else if (this.match(TokenType.PRIVATE)) {
+        // Handle private methods or properties
+        this.eat(TokenType.PRIVATE);
+
+        if (this.match(TokenType.IDENTIFIER)) {
+          const identifier = this.identifier();
+
+          if (this.match(TokenType.LPAREN)) {
+            // It's a private method
+            const params = this.functionParameters();
+            const methodBody = this.functionBody();
+
+            body.push({
+              type: "MethodDefinition",
+              name: identifier,
+              function: {
+                type: "FunctionDeclaration",
+                name: null,
+                params,
+                body: methodBody,
+              },
+              isStatic: false,
+              isConstructor: false,
+              isPrivate: true,
+              isProtected: false,
+            } as MethodDefinitionNode);
+          } else if (
+            this.match(TokenType.ASSIGN) ||
+            this.match(TokenType.CONST_ASSIGN)
+          ) {
+            // It's a private property
+            const isConstant = this.match(TokenType.CONST_ASSIGN);
+            this.eat(isConstant ? TokenType.CONST_ASSIGN : TokenType.ASSIGN);
+
+            const value = this.expression();
+            this.optionalSemicolon();
+
+            body.push({
+              type: "PropertyDefinition",
+              name: identifier,
+              value,
+              isStatic: false,
+              isPrivate: true,
+              isProtected: false,
+              isConstant,
+            } as PropertyDefinitionNode);
+          } else {
+            throw new Error(
+              `Expected '(' or '=' after private identifier at line ${this.currentToken.line}, column ${this.currentToken.column}`
+            );
+          }
+        } else {
+          throw new Error(
+            `Expected identifier after 'private' keyword at line ${this.currentToken.line}, column ${this.currentToken.column}`
+          );
+        }
+      } else if (this.match(TokenType.PROTECTED)) {
+        // Handle protected methods or properties
+        this.eat(TokenType.PROTECTED);
+
+        if (this.match(TokenType.IDENTIFIER)) {
+          const identifier = this.identifier();
+
+          if (this.match(TokenType.LPAREN)) {
+            // It's a protected method
+            const params = this.functionParameters();
+            const methodBody = this.functionBody();
+
+            body.push({
+              type: "MethodDefinition",
+              name: identifier,
+              function: {
+                type: "FunctionDeclaration",
+                name: null,
+                params,
+                body: methodBody,
+              },
+              isStatic: false,
+              isConstructor: false,
+              isPrivate: false,
+              isProtected: true,
+            } as MethodDefinitionNode);
+          } else if (
+            this.match(TokenType.ASSIGN) ||
+            this.match(TokenType.CONST_ASSIGN)
+          ) {
+            // It's a protected property
+            const isConstant = this.match(TokenType.CONST_ASSIGN);
+            this.eat(isConstant ? TokenType.CONST_ASSIGN : TokenType.ASSIGN);
+
+            const value = this.expression();
+            this.optionalSemicolon();
+
+            body.push({
+              type: "PropertyDefinition",
+              name: identifier,
+              value,
+              isStatic: false,
+              isPrivate: false,
+              isProtected: true,
+              isConstant,
+            } as PropertyDefinitionNode);
+          } else {
+            throw new Error(
+              `Expected '(' or '=' after protected identifier at line ${this.currentToken.line}, column ${this.currentToken.column}`
+            );
+          }
+        } else {
+          throw new Error(
+            `Expected identifier after 'protected' keyword at line ${this.currentToken.line}, column ${this.currentToken.column}`
+          );
+        }
+      } else if (this.match(TokenType.CONST)) {
         body.push(this.propertyDefinition());
       } else if (this.match(TokenType.IDENTIFIER)) {
         // Check if it's a property assignment or method definition
@@ -1072,13 +1250,14 @@ export class Parser {
             value,
             isStatic: false,
             isPrivate: false,
+            isProtected: false,
             isConstant,
           } as PropertyDefinitionNode);
         } else {
           // Rewind and parse as method
           this.position = savedPosition;
           this.currentToken = this.tokens[this.position];
-          body.push(this.methodDefinition(false));
+          body.push(this.methodDefinition(false, false, false));
         }
       } else {
         throw new Error(
@@ -1121,6 +1300,8 @@ export class Parser {
       },
       isStatic: false,
       isConstructor: true,
+      isPrivate: false,
+      isProtected: false,
     } as MethodDefinitionNode;
   }
 
@@ -1128,6 +1309,7 @@ export class Parser {
   private propertyDefinition(): PropertyDefinitionNode {
     let isStatic = false;
     let isPrivate = false;
+    let isProtected = false;
     let isConstant = false;
 
     if (this.match(TokenType.STATIC)) {
@@ -1138,6 +1320,11 @@ export class Parser {
     if (this.match(TokenType.PRIVATE)) {
       this.eat(TokenType.PRIVATE);
       isPrivate = true;
+    }
+
+    if (this.match(TokenType.PROTECTED)) {
+      this.eat(TokenType.PROTECTED);
+      isProtected = true;
     }
 
     if (this.match(TokenType.CONST)) {
@@ -1162,6 +1349,7 @@ export class Parser {
       value,
       isStatic,
       isPrivate,
+      isProtected,
       isConstant,
     } as PropertyDefinitionNode;
   }
@@ -1265,7 +1453,11 @@ export class Parser {
   }
 
   // Method definition
-  private methodDefinition(isStatic: boolean): MethodDefinitionNode {
+  private methodDefinition(
+    isStatic: boolean,
+    isPrivate: boolean = false,
+    isProtected: boolean = false
+  ): MethodDefinitionNode {
     const name = this.identifier();
     const params = this.functionParameters();
     const body = this.functionBody();
@@ -1281,6 +1473,8 @@ export class Parser {
       },
       isStatic,
       isConstructor: false,
+      isPrivate,
+      isProtected,
     } as MethodDefinitionNode;
   }
 

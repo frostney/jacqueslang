@@ -1,19 +1,19 @@
 import { describe, it, expect } from "bun:test";
 import { Jacques } from "../src";
 import {
-  JacquesMap,
+  JacquesRecord,
   JacquesString,
   JacquesNumber,
   JacquesBoolean,
 } from "../src/JacquesValue";
 
-describe("Objects", () => {
+describe("Records", () => {
   it("should be able to create an object", () => {
     const { env } = Jacques.runDebug(`
       object := { name: "John", age: 30 };
     `);
 
-    expect((env.object as JacquesMap).properties).toEqual({
+    expect((env.object as JacquesRecord).properties).toEqual({
       name: new JacquesString("John"),
       age: new JacquesNumber(30),
     });
@@ -25,12 +25,12 @@ describe("Objects", () => {
       map2 := map.Add("name2", "John");
     `);
 
-    expect((env.map as JacquesMap).properties).toEqual({
+    expect((env.map as JacquesRecord).properties).toEqual({
       name: new JacquesString("John"),
       age: new JacquesNumber(30),
     });
 
-    expect((env.map2 as JacquesMap).properties).toEqual({
+    expect((env.map2 as JacquesRecord).properties).toEqual({
       name: new JacquesString("John"),
       age: new JacquesNumber(30),
       name2: new JacquesString("John"),
@@ -43,12 +43,12 @@ describe("Objects", () => {
       map2 := map.Remove("name");
     `);
 
-    expect((env.map as JacquesMap).properties).toEqual({
+    expect((env.map as JacquesRecord).properties).toEqual({
       name: new JacquesString("John"),
       age: new JacquesNumber(30),
     });
 
-    expect((env.map2 as JacquesMap).properties).toEqual({
+    expect((env.map2 as JacquesRecord).properties).toEqual({
       age: new JacquesNumber(30),
     });
   });
@@ -59,7 +59,7 @@ describe("Objects", () => {
       map.ForEach((key, value) => Println(key, value));
     `);
 
-    expect((env.map as JacquesMap).properties).toEqual({
+    expect((env.map as JacquesRecord).properties).toEqual({
       name: new JacquesString("John"),
       age: new JacquesNumber(30),
     });
@@ -97,10 +97,10 @@ describe("Objects", () => {
       map := { name: "John", age: 30, address: { city: "New York", country: "USA" } };
     `);
 
-    expect((env.map as JacquesMap).properties).toEqual({
+    expect((env.map as JacquesRecord).properties).toEqual({
       name: new JacquesString("John"),
       age: new JacquesNumber(30),
-      address: new JacquesMap({
+      address: new JacquesRecord({
         city: new JacquesString("New York"),
         country: new JacquesString("USA"),
       }),
@@ -114,7 +114,7 @@ describe("Objects", () => {
       result := map1.Merge(map2);
     `);
 
-    expect((env.result as JacquesMap).properties).toEqual({
+    expect((env.result as JacquesRecord).properties).toEqual({
       name: new JacquesString("John"),
       age: new JacquesNumber(30),
       name2: new JacquesString("Jane"),
@@ -189,12 +189,12 @@ describe("Objects", () => {
         map2 := map.Set("name", "Jane");
       `);
 
-      expect((env.map as JacquesMap).properties).toEqual({
+      expect((env.map as JacquesRecord).properties).toEqual({
         name: new JacquesString("John"),
         age: new JacquesNumber(30),
       });
 
-      expect((env.map2 as JacquesMap).properties).toEqual({
+      expect((env.map2 as JacquesRecord).properties).toEqual({
         name: new JacquesString("Jane"),
         age: new JacquesNumber(30),
       });

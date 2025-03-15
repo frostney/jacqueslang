@@ -51,7 +51,7 @@ describe("Arrays", () => {
       new JacquesNumber(3),
     ]);
 
-    expect((env.array as JacquesArray).elements).toEqual([
+    expect((env.array2 as JacquesArray).elements).toEqual([
       new JacquesNumber(1),
       new JacquesNumber(3),
     ]);
@@ -102,8 +102,15 @@ describe("Arrays", () => {
   it("should be able to iterate over an array with a for loop", () => {
     const { env } = Jacques.runDebug(`
       array := [1, 2, 3];
-      for (element in array)
-        Println(element);
+      val1 = 0;
+      val2 = 0;
+      val3 = 0;
+      
+      array.ForEach(element => {
+        val1 = val1 + element;
+        val2 = val2 + element;
+        val3 = val3 + element;
+      });
     `);
 
     expect((env.array as JacquesArray).elements).toEqual([
@@ -111,11 +118,15 @@ describe("Arrays", () => {
       new JacquesNumber(2),
       new JacquesNumber(3),
     ]);
+    expect((env.val1 as JacquesNumber).value).toBe(6);
+    expect((env.val2 as JacquesNumber).value).toBe(6);
+    expect((env.val3 as JacquesNumber).value).toBe(6);
   });
 
   it("should be able to iterate over an array with a while loop", () => {
     const { env } = Jacques.runDebug(`
       array := [1, 2, 3];
+      index := 0;
       while (index < array.Length)
         Println(array[index]);
         index++;

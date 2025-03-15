@@ -21,16 +21,21 @@ import type {
   ExportDeclarationNode,
   MethodDefinitionNode,
   WhileStatementNode,
+  ForStatementNode,
+  UpdateExpressionNode,
+  PropertyDefinitionNode,
+  PropertyDeclarationNode,
 } from "./ASTNode";
 import {
   JacquesValue,
-  JacquesArray,
   JacquesNumber,
   JacquesString,
   JacquesBoolean,
-  JacquesMap,
+  JacquesArray,
+  JacquesRecord,
   JacquesFunction,
   isReturnValue,
+  JacquesClass,
 } from "./JacquesValue";
 import type { ReturnValue } from "./JacquesValue";
 import {
@@ -98,8 +103,8 @@ export class Interpreter {
 
     this.builtins.Map = (
       properties: Record<string, JacquesValue> = {}
-    ): JacquesMap => {
-      return new JacquesMap(properties);
+    ): JacquesRecord => {
+      return new JacquesRecord(properties);
     };
   }
 
@@ -157,6 +162,10 @@ export class Interpreter {
         );
       case "WhileStatement":
         return this.evaluateWhileStatement(node as WhileStatementNode, env);
+      case "ForStatement":
+        return this.visitForStatement(node as ForStatementNode);
+      case "UpdateExpression":
+        return this.visitUpdateExpression(node as UpdateExpressionNode);
       default:
         throw new Error(`Unknown node type: ${node.type}`);
     }
@@ -451,7 +460,7 @@ export class Interpreter {
           throw new Error("Cannot use self outside of a class method");
         }
 
-        const self = env.self as JacquesMap;
+        const self = env.self as JacquesRecord;
         const property = isIdentifierNode(memberExpr.property)
           ? memberExpr.property.name
           : (this.evaluate(memberExpr.property, env) as JacquesValue).ToString()
@@ -492,7 +501,7 @@ export class Interpreter {
 
       // Handle map and array properties
       if (
-        !(objectResult instanceof JacquesMap) &&
+        !(objectResult instanceof JacquesRecord) &&
         !(objectResult instanceof JacquesArray)
       ) {
         throw new Error(`Cannot assign to property of non-object type`);
@@ -514,7 +523,7 @@ export class Interpreter {
           throw new Error(`Cannot assign non-value to property: ${property}`);
         }
 
-        if (object instanceof JacquesMap) {
+        if (object instanceof JacquesRecord) {
           object.properties[property] = valueResult;
           return valueResult;
         } else if (object instanceof JacquesArray) {
@@ -533,7 +542,7 @@ export class Interpreter {
           throw new Error(`Cannot assign non-value to property: ${property}`);
         }
 
-        if (object instanceof JacquesMap) {
+        if (object instanceof JacquesRecord) {
           object.properties[property] = valueResult;
           return valueResult;
         }
@@ -559,13 +568,17 @@ export class Interpreter {
       elements.push(result);
     }
 
-    return new JacquesArray(elements);
+    console.log("elements", elements);
+
+    const array = new JacquesArray(elements);
+    console.log("array", array);
+    return array;
   }
 
   private evaluateObjectLiteral(
     node: ObjectLiteralNode,
     env: Environment
-  ): JacquesMap {
+  ): JacquesRecord {
     const properties: Record<string, JacquesValue> = {};
 
     for (const { key, value } of node.properties) {
@@ -578,163 +591,90 @@ export class Interpreter {
       properties[key] = valueResult;
     }
 
-    return new JacquesMap(properties);
+    return new JacquesRecord(properties);
   }
 
   private evaluateMemberExpression(
     node: MemberExpressionNode,
     env: Environment
-  ): JacquesValue | Function {
-    // Get the object
+  ): JacquesValue {
     const object = this.evaluate(node.object, env);
 
-    // Get the property
-    let property;
-    if (node.computed) {
-      // Computed property access: obj[expr]
-      property = this.evaluate(node.property, env);
-    } else {
-      // Direct property access: obj.prop
-      if (isIdentifierNode(node.property)) {
-        property = node.property.name;
-      } else {
-        throw new Error("Property must be an identifier");
-      }
+    if (!object) {
+      throw new Error("Cannot access property of null or undefined");
     }
 
-    // Handle different object types
-    if (object instanceof JacquesArray) {
-      // Handle array specific methods and properties
-      if (typeof property === "string") {
-        if (property === "length") {
-          return new JacquesNumber(object.length);
-        } else if (property === "push" || property === "Add") {
-          return new JacquesFunction(
-            (element: JacquesValue) => object.Add(element),
-            "push",
-            ["element"]
-          );
-        } else if (property === "Get") {
-          return new JacquesFunction(
-            (index: JacquesNumber) => object.Get(index.value),
-            "Get",
-            ["index"]
-          );
-        } else if (property === "Remove") {
-          return new JacquesFunction(
-            (index: JacquesNumber) => object.Remove(index.value),
-            "Remove",
-            ["index"]
-          );
-        } else if (property === "Map") {
-          return new JacquesFunction(
-            (callback: JacquesFunction) => object.Map(callback),
-            "Map",
-            ["callback"]
-          );
-        } else if (property === "Filter") {
-          return new JacquesFunction(
-            (predicate: JacquesFunction) => object.Filter(predicate),
-            "Filter",
-            ["predicate"]
-          );
-        } else if (property === "forEach" || property === "ForEach") {
-          return new JacquesFunction(
-            (callback: Function) => {
-              object.ForEach((element, index) => {
-                if (callback instanceof JacquesFunction) {
-                  callback.__call__([element, index]);
-                } else {
-                  callback(element, index);
-                }
-              });
-              return object;
-            },
-            "ForEach",
-            ["callback"]
-          );
+    if (!(object instanceof JacquesValue)) {
+      throw new Error(
+        `Cannot access property of non-JacquesValue: ${typeof object}`
+      );
+    }
+
+    // Handle computed property access
+    if (node.computed) {
+      const property = this.evaluate(node.property, env);
+      if (property instanceof JacquesString) {
+        // Handle string property access (like object["key"])
+        if (object instanceof JacquesRecord) {
+          return object.properties[property.value] || new JacquesNumber(0);
+        } else {
+          // For other JacquesValue types, check if the property exists
+          if (Object.prototype.hasOwnProperty.call(object, property.value)) {
+            const prop = Reflect.get(object, property.value);
+            if (prop instanceof JacquesValue) {
+              return prop;
+            }
+          }
+          return new JacquesNumber(0);
         }
-      } else if (property instanceof JacquesNumber) {
-        // Handle array index access
-        const index = property.value;
+      } else if (
+        property instanceof JacquesNumber &&
+        object instanceof JacquesArray
+      ) {
+        // Handle array index access (like array[0])
+        const index = Math.floor(property.value);
         if (index >= 0 && index < object.elements.length) {
           return object.elements[index];
         }
-        return new JacquesNumber(0); // Return default for out of bounds
+        throw new Error(`Array index out of bounds: ${index}`);
       }
-    } else if (object instanceof JacquesMap) {
-      // Handle object property access
-      if (typeof property === "string") {
-        if (property in object.properties) {
-          return object.properties[property];
-        }
-      }
-    } else if (object instanceof JacquesFunction) {
-      // Handle function methods like Bind, Apply, Compose
-      if (typeof property === "string") {
-        if (property === "Bind") {
-          return new JacquesFunction(
-            (...args: JacquesValue[]) => object.Bind(...args),
-            "Bind",
-            ["...args"]
-          );
-        } else if (property === "Apply") {
-          return new JacquesFunction(
-            (argsArray: JacquesArray) => object.Apply(argsArray),
-            "Apply",
-            ["argsArray"]
-          );
-        } else if (property === "Compose") {
-          return new JacquesFunction(
-            (other: JacquesFunction) => object.Compose(other),
-            "Compose",
-            ["otherFunction"]
-          );
-        } else if (property === "name") {
-          return new JacquesString(object.name);
-        }
-      }
-    } else if (object instanceof JacquesString) {
-      // Handle string properties
-      if (typeof property === "string") {
-        if (property === "length") {
-          return new JacquesNumber(object.value.length);
-        }
-      } else if (property instanceof JacquesNumber) {
-        // Handle string index access
-        const index = property.value;
-        if (index >= 0 && index < object.value.length) {
-          return new JacquesString(object.value[index]);
-        }
-        return new JacquesString(""); // Empty string for out of bounds
+      throw new Error("Property accessor must be a string or number");
+    }
+
+    // Handle direct property access
+    if (node.property.type !== "Identifier") {
+      throw new Error("Property must be an identifier");
+    }
+
+    const propertyName = (node.property as IdentifierNode).name;
+
+    // First check for built-in properties
+    if (object instanceof JacquesArray) {
+      if (propertyName === "Length") {
+        return object.Length;
       }
     }
 
-    // For any other object type
-    if (typeof object === "object" && object !== null) {
-      const objAsAny = object as any;
-
-      // Check if the property exists on the object
-      if (typeof property === "string" && property in objAsAny) {
-        const value = objAsAny[property];
-
-        // Handle method calls (wrap functions)
-        if (typeof value === "function") {
-          // This is a method, create a bound function
-          return new JacquesFunction(
-            (...args: unknown[]) => value.apply(object, args),
-            property
-          );
-        }
-
-        // Return the property value
-        return value instanceof JacquesValue
-          ? value
-          : new JacquesString(String(value));
-      }
+    // For records, check in properties
+    if (object instanceof JacquesRecord && propertyName in object.properties) {
+      return object.properties[propertyName];
     }
 
-    throw new Error(`Property ${String(property)} not found on object`);
+    // Try to access property directly
+    if (propertyName in object) {
+      const prop = (object as any)[propertyName];
+
+      // For functions, bind them to the object
+      if (typeof prop === "function") {
+        return prop.bind(object);
+      }
+
+      return prop;
+    }
+
+    throw new Error(
+      `Property '${propertyName}' not found on ${object.constructor.name}`
+    );
   }
 
   private evaluateCallExpression(
@@ -883,242 +823,141 @@ export class Interpreter {
   private evaluateClassDeclaration(
     node: ClassDeclarationNode,
     env: Environment
-  ): Function {
-    // Store reference to the interpreter
-    const interpreter = this;
+  ): JacquesClass {
+    const className = node.name.name;
 
-    // Create a constructor function that will be both the class and instance constructor
-    const classConstructor = function (
-      this: Record<string, unknown>,
-      ...args: unknown[]
-    ): JacquesValue {
-      // If called without 'new', we can't access 'this'
-      if (!(this instanceof Object)) {
-        throw new Error(`Class constructor must be called with 'new'`);
-      }
-
-      // Handle extends (inheritance)
-      if (node.superClass !== null && superClassConstructor) {
-        Object.setPrototypeOf(
-          this,
-          Object.create((superClassConstructor as Function).prototype)
-        );
-      }
-
-      // Initialize instance properties
-      for (const prop of node.body) {
-        if (isPropertyDefinitionNode(prop) && !prop.isStatic) {
-          const propDef = prop;
-          if (propDef.value) {
-            const value = interpreter.evaluate(propDef.value, env);
-            if (value instanceof JacquesValue) {
-              this[propDef.name.name] = value;
-            } else {
-              this[propDef.name.name] = new JacquesNumber(0);
-            }
-          } else {
-            this[propDef.name.name] = new JacquesNumber(0);
-          }
-        }
-      }
-
-      // Create a JacquesMap to wrap the instance
-      const instanceMap = new JacquesMap();
-
-      // Copy all properties from this to the map
-      for (const key in this) {
-        if (Object.prototype.hasOwnProperty.call(this, key)) {
-          const value = this[key];
-          if (value instanceof JacquesValue) {
-            instanceMap.properties[key] = value;
-          } else if (typeof value === "function") {
-            // Skip functions
-          } else {
-            instanceMap.properties[key] = new JacquesNumber(0);
-          }
-        }
-      }
-
-      // Copy all methods from this to the map
-      for (const prop of node.body) {
-        if (isMethodDefinitionNode(prop) && !prop.isConstructor) {
-          const methodName = prop.name.name;
-          const methodFunc = this[methodName] as Function;
-
-          // Create a wrapper function that includes instance properties in the environment
-          instanceMap.properties[methodName] = function (...args: unknown[]) {
-            // Create a method environment with access to instance properties
-            const methodEnv: Environment = { ...env, ...interpreter.builtins };
-
-            // Add all instance properties to the environment
-            for (const key in instanceMap.properties) {
-              if (key !== methodName) {
-                methodEnv[key] = instanceMap.properties[key];
-              }
-            }
-
-            // Add self reference
-            methodEnv.self = instanceMap;
-
-            // Execute the method with the proper environment
-            const body = prop.function.body;
-
-            // Handle array of statements
-            if (Array.isArray(body)) {
-              // Execute each statement in the body
-              let result: JacquesValue | Function | ReturnValue | null = null;
-              for (const statement of body) {
-                result = interpreter.evaluate(statement, methodEnv);
-                if (isReturnValue(result)) {
-                  return result.__value__;
-                }
-              }
-              return result;
-            } else {
-              // Handle single expression
-              return interpreter.evaluate(body, methodEnv);
-            }
-          } as unknown as JacquesValue;
-        }
-      }
-
-      // Call constructor if it exists
-      const constructorDef = node.body.find(
-        (member) => isMethodDefinitionNode(member) && member.isConstructor
-      ) as MethodDefinitionNode | undefined;
-
-      if (constructorDef) {
-        // Create a constructor environment with self reference
-        const constructorEnv: Environment = {
-          ...Object.assign({}, env),
-          ...Object.assign({}, this.builtins),
-          // Add self reference to the instance
-          self: instanceMap,
-        };
-
-        const constructorFunc = interpreter.evaluate(
-          constructorDef.function,
-          constructorEnv
-        );
-
-        if (typeof constructorFunc === "function") {
-          // Process constructor arguments
-          const constructorParams = constructorDef.function.params;
-
-          // Handle shorthand properties in constructor parameters
-          for (
-            let i = 0;
-            i < constructorParams.length && i < args.length;
-            i++
-          ) {
-            const param = constructorParams[i];
-            if (param.isShorthandProperty) {
-              // Automatically assign parameter value to instance property
-              instanceMap.properties[param.name] = args[i] as JacquesValue;
-            }
-          }
-
-          // Call the constructor function with the instance as 'this'
-          constructorFunc.apply(null, args);
-        }
-      }
-
-      return instanceMap;
-    };
-
-    // Handle extends (inheritance)
-    let superClassConstructor: Function | null = null;
-    if (node.superClass !== null) {
-      const evalResult = this.evaluate(node.superClass, env);
-      if (typeof evalResult === "function") {
-        superClassConstructor = evalResult;
+    // Process inheritance if any
+    let superClass: JacquesClass | null = null;
+    if (node.superClass) {
+      const superClassValue = this.evaluate(node.superClass, env);
+      if (superClassValue instanceof JacquesClass) {
+        superClass = superClassValue;
       } else {
-        throw new Error(`Cannot extend non-class type`);
+        throw new Error(`Superclass ${node.superClass.name} is not a class`);
       }
     }
 
-    // Add instance methods
-    for (const member of node.body) {
-      if (
-        isMethodDefinitionNode(member) &&
-        !member.isStatic &&
-        !member.isConstructor
-      ) {
-        const methodDef = member;
-        const name = methodDef.name.name;
+    // Process class body
+    const staticProperties: Record<string, JacquesValue> = {};
+    const instanceProperties: Record<string, JacquesValue> = {};
+    const privateProperties: Record<string, JacquesValue> = {};
+    const protectedProperties: Record<string, JacquesValue> = {};
+    const methods: Record<string, JacquesFunction> = {};
+    const staticMethods: Record<string, JacquesFunction> = {};
+    const privateMethods: Record<string, JacquesFunction> = {};
+    const protectedMethods: Record<string, JacquesFunction> = {};
+    let constructorFunc: JacquesFunction | null = null;
 
-        // Add method to prototype
-        classConstructor.prototype[name] = function (
-          this: Record<string, unknown>,
-          ...args: unknown[]
-        ): JacquesValue | null {
-          const method = interpreter.evaluate(methodDef.function, {
-            ...env,
-            self: this as unknown as JacquesValue,
-          });
+    // Create the class
+    const jacquesClass = new JacquesClass(
+      className,
+      superClass,
+      {}, // properties
+      {}, // methods
+      null // constructorFunc
+    );
 
-          if (typeof method === "function") {
-            return method.apply(this, args);
-          }
+    // Process each member of the class body
+    for (const prop of node.body) {
+      // Process property definitions
+      if (isPropertyDefinitionNode(prop)) {
+        const propName = prop.name.name;
+        const propValue = prop.value
+          ? (this.evaluate(prop.value, env) as JacquesValue)
+          : new JacquesNumber(0);
 
-          return null;
-        };
-      }
-    }
-
-    // Add static methods and properties
-    for (const member of node.body) {
-      if (isMethodDefinitionNode(member) && member.isStatic) {
-        const methodDef = member;
-        const methodName = methodDef.name.name;
-
-        const staticFunc = interpreter.evaluate(methodDef.function, {
-          ...env,
-          self: classConstructor as unknown as JacquesValue,
-        });
-
-        if (typeof staticFunc === "function") {
-          Object.defineProperty(classConstructor, methodName, {
-            value: staticFunc,
-            writable: true,
-            configurable: true,
-          });
-        }
-      } else if (isPropertyDefinitionNode(member) && member.isStatic) {
-        const propDef = member;
-        const propName = propDef.name.name;
-
-        if (propDef.value) {
-          const staticValue = interpreter.evaluate(propDef.value, env);
-          if (staticValue instanceof JacquesValue) {
-            Object.defineProperty(classConstructor, propName, {
-              value: staticValue,
-              writable: true,
-              configurable: true,
-            });
-          } else {
-            Object.defineProperty(classConstructor, propName, {
-              value: new JacquesNumber(0),
-              writable: true,
-              configurable: true,
-            });
-          }
+        if (prop.isStatic) {
+          staticProperties[propName] = propValue;
+        } else if (prop.isPrivate) {
+          privateProperties[propName] = propValue;
+        } else if (prop.isProtected) {
+          protectedProperties[propName] = propValue;
         } else {
-          Object.defineProperty(classConstructor, propName, {
-            value: new JacquesNumber(0),
-            writable: true,
-            configurable: true,
-          });
+          instanceProperties[propName] = propValue;
+        }
+      }
+      // Process method definitions
+      else if (isMethodDefinitionNode(prop)) {
+        const methodName = prop.name.name;
+
+        // Create method function
+        const methodFunc = (...args: JacquesValue[]): JacquesValue | null => {
+          // Create a new environment for the method
+          const methodEnv: Environment = { ...env };
+
+          // Set 'self' to the first argument (the instance)
+          if (args.length > 0) {
+            methodEnv.self = args[0];
+          }
+
+          // Set the current class for 'super' keyword
+          methodEnv.currentClass = jacquesClass;
+
+          // Bind parameters to arguments (skip the first arg which is 'self')
+          for (let i = 0; i < prop.function.params.length; i++) {
+            const param = prop.function.params[i];
+            let argValue: JacquesValue;
+
+            if (i + 1 < args.length) {
+              // Use provided argument
+              argValue = args[i + 1];
+            } else {
+              // Otherwise use a default value of 0
+              argValue = new JacquesNumber(0);
+            }
+
+            methodEnv[param.name] = argValue;
+          }
+
+          // Execute method body
+          let result: JacquesValue | Function | ReturnValue | null = null;
+          for (const statement of prop.function.body) {
+            result = this.evaluate(statement, methodEnv);
+
+            if (isReturnValue(result)) {
+              return (result as ReturnValue).__value__;
+            }
+          }
+
+          return result instanceof JacquesValue ? result : null;
+        };
+
+        // Create a JacquesFunction for the method
+        const jacquesMethod = new JacquesFunction(
+          methodFunc,
+          methodName,
+          prop.function.params.map((p) => p.name)
+        );
+
+        // Store the method in the appropriate collection
+        if (prop.isConstructor) {
+          constructorFunc = jacquesMethod;
+          // Create a proper JacquesClassMethod object
+          jacquesClass.constructorFunc = {
+            value: jacquesMethod,
+            modifier: "instance",
+          };
+        } else if (prop.isStatic) {
+          staticMethods[methodName] = jacquesMethod;
+          // Use proper methods to set methods on the class
+          jacquesClass.DefineMethod(methodName, jacquesMethod, "static");
+        } else if (prop.isPrivate) {
+          privateMethods[methodName] = jacquesMethod;
+          jacquesClass.DefineMethod(methodName, jacquesMethod, "private");
+        } else if (prop.isProtected) {
+          protectedMethods[methodName] = jacquesMethod;
+          jacquesClass.DefineMethod(methodName, jacquesMethod, "protected");
+        } else {
+          methods[methodName] = jacquesMethod;
+          jacquesClass.DefineMethod(methodName, jacquesMethod, "instance");
         }
       }
     }
 
-    // Add class to environment if it has a name
-    if (node.name !== null) {
-      env[node.name.name] = classConstructor;
-    }
+    // Store the class in the environment
+    env[className] = jacquesClass;
 
-    return classConstructor;
+    return jacquesClass;
   }
 
   private evaluateIfStatement(
@@ -1262,7 +1101,7 @@ export class Interpreter {
         conditionValue = condition.value !== "";
       } else if (condition instanceof JacquesArray) {
         conditionValue = condition.elements.length > 0;
-      } else if (condition instanceof JacquesMap) {
+      } else if (condition instanceof JacquesRecord) {
         conditionValue = Object.keys(condition.properties).length > 0;
       } else {
         conditionValue = Boolean(condition);
@@ -1293,6 +1132,86 @@ export class Interpreter {
     }
 
     return result;
+  }
+
+  private visitForStatement(
+    node: ForStatementNode
+  ): JacquesValue | ReturnValue | null {
+    const collection = this.evaluate(node.collection);
+
+    if (!(collection instanceof JacquesArray)) {
+      throw new Error(`Cannot iterate over non-array value`);
+    }
+
+    let result: JacquesValue | ReturnValue | null = null;
+
+    // Create a new environment for the loop
+    const previousEnv = { ...this.env };
+
+    // Iterate over each element in the array
+    for (const element of collection.elements) {
+      // Bind the current element to the variable name
+      this.env[node.variable.name] = element;
+
+      // Execute the body statements
+      for (const statement of node.body) {
+        const evalResult = this.evaluate(statement);
+
+        // If we got a return value, exit the loop
+        if (isReturnValue(evalResult)) {
+          result = evalResult;
+          break;
+        }
+
+        // Only store JacquesValue results
+        if (evalResult instanceof JacquesValue) {
+          result = evalResult;
+        }
+      }
+
+      // If we got a return value, exit the loop
+      if (isReturnValue(result)) {
+        break;
+      }
+    }
+
+    // Restore the previous environment
+    this.env = previousEnv;
+
+    return result;
+  }
+
+  private visitUpdateExpression(node: UpdateExpressionNode): JacquesValue {
+    if (node.operator === "++" && !node.prefix) {
+      // Handle postfix increment (x++)
+      if (node.argument.type !== "Identifier") {
+        throw new Error("Invalid left-hand side in assignment");
+      }
+
+      const variableName = (node.argument as IdentifierNode).name;
+
+      // Get the current value from the environment
+      const currentValue = this.env[variableName];
+
+      if (!currentValue) {
+        throw new Error(`Variable ${variableName} is not defined`);
+      }
+
+      if (!(currentValue instanceof JacquesNumber)) {
+        throw new Error("Cannot increment non-number value");
+      }
+
+      // Create a new number with incremented value
+      const newValue = new JacquesNumber(currentValue.value + 1);
+
+      // Update the variable
+      this.env[variableName] = newValue;
+
+      // For postfix increment, return the original value
+      return currentValue;
+    }
+
+    throw new Error(`Unsupported update expression: ${node.operator}`);
   }
 
   public execute(): JacquesValue | null {

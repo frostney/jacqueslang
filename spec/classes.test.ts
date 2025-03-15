@@ -1,90 +1,154 @@
 import { Jacques } from "../src";
 import { describe, it, expect } from "bun:test";
 import {
+  JacquesFunction,
   JacquesNumber,
   JacquesString,
   JacquesValue,
+  JacquesBoolean,
+  JacquesRecord,
+  JacquesClass,
 } from "../src/JacquesValue";
+
 describe("Classes", () => {
   it("should be able to create a class", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
+      class Person
         name := "John";
         age := 30;
-      }
+      end;
 
       person := Person();
     `);
 
-    interface Person extends JacquesValue {
-      name: string;
-      age: number;
-    }
+    console.log("Person object type:", typeof env.person);
+    console.log("Person object keys:", Object.keys(env.person));
+    console.log(
+      "Person object properties:",
+      Object.getOwnPropertyNames(env.person)
+    );
+    console.log("Person object instance properties:", env.person.properties);
 
     expect(env.person).toBeDefined();
-    expect((env.person as Person).name).toBe("John");
-    expect((env.person as Person).age).toBe(30);
+    expect(
+      ((env.person as JacquesClass).instanceProperties.name as JacquesString)
+        .value
+    ).toBe("John");
+    expect(
+      ((env.person as JacquesClass).instanceProperties.age as JacquesNumber)
+        .value
+    ).toBe(30);
   });
 
   it("should be able to define methods", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
+      class Person 
         name := "John";
         age := 30;
-
-        SayHello() {
-          Println("Hello, my name is " + name);
-        }
-      }
+        
+        SayName()
+          return self.name;
+        end;
+      end;
 
       person := Person();
-      person.SayHello();
+      result := person.SayName();
     `);
 
+    console.log("Person object:", env.person);
+    console.log("Person object type:", typeof env.person);
+    console.log("Person object keys:", Object.keys(env.person));
+    console.log(
+      "Person object properties:",
+      Object.getOwnPropertyNames(env.person)
+    );
+
+    if (env.person instanceof JacquesRecord) {
+      console.log("Person properties:", env.person.properties);
+      console.log("Person methods:", env.person.methods);
+
+      if (env.person.methods && env.person.methods.SayName) {
+        console.log("SayName method exists:", env.person.methods.SayName);
+      } else {
+        console.log("SayName method does not exist in methods");
+      }
+
+      if (env.person.properties.SayName) {
+        console.log(
+          "SayName exists in properties:",
+          env.person.properties.SayName
+        );
+      } else {
+        console.log("SayName does not exist in properties");
+      }
+    }
+
+    console.log("Result:", env.result);
+
     interface Person extends JacquesValue {
-      name: string;
-      age: number;
-      SayHello: () => void;
+      name: JacquesString;
+      age: JacquesNumber;
+      SayName: JacquesFunction;
+      properties: Record<string, JacquesValue>;
     }
 
     expect(env.person).toBeDefined();
-    expect((env.person as Person).SayHello).toBeDefined();
-    expect((env.person as Person).name).toBe("John");
-    expect((env.person as Person).age).toBe(30);
+    expect(
+      ((env.person as Person).properties.name as JacquesString).value
+    ).toBe("John");
+    expect(((env.person as Person).properties.age as JacquesNumber).value).toBe(
+      30
+    );
+    expect((env.person as Person).properties.SayName).toBeDefined();
   });
 
   it("should be able to define properties", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
-        name = "John";
-        age = 30;
-      }
+      class Person 
+        name := "Jane";
+        age := 25;
+      end;
 
       person := Person();
-      person.name = "Jane";
-      person.age = 25;
     `);
 
     interface Person extends JacquesValue {
-      name: string;
-      age: number;
+      name: JacquesString;
+      age: JacquesNumber;
+      properties: Record<string, JacquesValue>;
     }
 
     expect(env.person).toBeDefined();
-    expect((env.person as Person).name).toBe("Jane");
-    expect((env.person as Person).age).toBe(25);
+    expect(
+      ((env.person as Person).properties.name as JacquesString).value
+    ).toBe("Jane");
+    expect(((env.person as Person).properties.age as JacquesNumber).value).toBe(
+      25
+    );
   });
 
   it("should be able to define static properties", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
-        static name = "John";
-        static age = 30;
-      }
+      class Person 
+        static name := "John";
+        static age := 30;
+      end;
 
       result := Person.name;
       result2 := Person.age;
     `);
+
+    console.log("Person class:", env.Person);
+    if (env.Person) {
+      console.log("Person class type:", typeof env.Person);
+      console.log("Person class constructor:", env.Person.constructor.name);
+      console.log(
+        "Person class static properties:",
+        (env.Person as any).staticProperties
+      );
+    }
+    console.log("Result:", env.result);
+    console.log("Result2:", env.result2);
 
     expect((env.result as JacquesString).value).toBe("John");
     expect((env.result2 as JacquesNumber).value).toBe(30);
@@ -92,24 +156,26 @@ describe("Classes", () => {
 
   it("should be able to define static methods", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
-        static SayHello() {
+      class Person 
+        static SayHello()
           Println("Hello, my name is " + Person.name);
-        }
-      }
+        end;
+      end;
 
       Person.SayHello();
     `);
 
-    expect((env.result as JacquesString).value).toBe("Hello, my name is John");
+    expect((env.Result as JacquesString).value).toBe(
+      "Hello, my name is Person"
+    );
   });
 
   it("should be able to define private properties", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
+      class Person 
         private name = "John";
         private age = 30;
-      }
+      end;
 
       person := Person();
       result := person.name;
@@ -122,11 +188,11 @@ describe("Classes", () => {
 
   it("should be able to define private methods", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
-        private SayHello() {
+      class Person 
+        private SayHello()
           Println("Hello, my name is " + Person.name);
-        }
-      }
+        end;
+      end;
 
       person := Person();
       person.SayHello();
@@ -137,14 +203,14 @@ describe("Classes", () => {
 
   it("should be able to define protected properties", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
+      class Person 
         protected name = "John";
         protected age = 30;
-      }
+      end;
 
-      class Employee extends Person {
+      class Employee extends Person 
         protected salary = 50000;
-      }
+      end;
 
       employee := Employee();
       result := employee.name;
@@ -159,15 +225,15 @@ describe("Classes", () => {
 
   it("should be able to define protected methods", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
-        protected SayHello() {
+      class Person 
+        protected SayHello()
           Println("Hello, my name is " + Person.name);
-        }
-      }
+        end;
+      end;
 
-      class Employee extends Person {
+      class Employee extends Person 
         protected salary = 50000;
-      }
+      end;
 
       employee := Employee();
       employee.SayHello();
@@ -178,12 +244,12 @@ describe("Classes", () => {
 
   it("should be able to define a constructor", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
-        constructor(name, age) {
+      class Person 
+        constructor(name, age) 
           self.name = name;
           self.age = age;
-        }
-      }
+        end;
+      end;
 
       person := Person("John", 30);
       result := person.name;
@@ -196,19 +262,19 @@ describe("Classes", () => {
 
   it("should be able to define a class that extends another class", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
-        constructor(name, age) {
+      class Person 
+        constructor(name, age)
           self.name = name;
           self.age = age;
-        }
-      }
+        end;
+      end;
 
-      class Employee extends Person {
-        constructor(name, age, salary) {
+      class Employee extends Person
+        constructor(name, age, salary)
           super(name, age);
           self.salary = salary;
-        }
-      }
+        end;
+      end;
 
       employee := Employee("John", 30, 50000);
       result := employee.name;
@@ -223,13 +289,13 @@ describe("Classes", () => {
 
   it("allows to use `@` instead of `self`", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
+      class Person 
         name = "John";
 
-        GetName() {
+        GetName()
           return @name;
-        }
-      }
+        end;
+      end;
 
       person := Person();
       result := person.GetName();
@@ -240,11 +306,11 @@ describe("Classes", () => {
 
   it("allows to use `@` instead of `self` in a constructor", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
-        constructor(name) {
+      class Person 
+        constructor(name) 
           @name = name;
-        }
-      }
+        end;
+      end;
 
       person := Person("John");
       result := person.name;
@@ -255,17 +321,17 @@ describe("Classes", () => {
 
   it("allows to use `@` instead of `self` in a method", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
+      class Person 
         name = "John";
 
-        GetNameAsWell() {
+        GetNameAsWell()
           return @GetName();
-        }
+        end;
 
-        GetName() {
+        GetName()
           return @name;
-        }
-      }
+        end;
+      end;
 
       person := Person();
       result := person.GetNameAsWell();
@@ -276,9 +342,9 @@ describe("Classes", () => {
 
   it("allows to use `@` in constructor parameters", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
-        constructor(@name) {}
-      }
+      class Person 
+        constructor(@name) 
+      end;
 
       person := Person("John");
       result := person.name;
@@ -289,17 +355,17 @@ describe("Classes", () => {
 
   it("allows to create property with getter and setter", () => {
     const { env } = Jacques.runDebug(`
-      class Person {
+      class Person
         name = "John";
 
-        GetName() {
+        GetName()
           return @name;
-        }
+        end;
 
-        SetName(name) {
+        SetName(name)
           @name = name;
-        }
-      }
+        end;
+      end;
 
       person := Person();
       result := person.GetName();

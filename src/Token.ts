@@ -42,6 +42,8 @@ export enum TokenType {
   DOT = "DOT", // .
   ARROW = "ARROW", // =>
   AT = "AT", // @
+  INCREMENT = "INCREMENT", // ++
+  DECREMENT = "DECREMENT", // --
 
   // Keywords
   FUNCTION = "FUNCTION",
@@ -57,6 +59,7 @@ export enum TokenType {
   SET = "SET",
   STATIC = "STATIC",
   PRIVATE = "PRIVATE",
+  PROTECTED = "PROTECTED",
   CONST = "CONST",
   SELF = "SELF",
   RESULT = "RESULT",

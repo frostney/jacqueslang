@@ -98,6 +98,7 @@ export interface PropertyDefinitionNode extends ASTNode {
   value: ASTNode | null;
   isStatic: boolean;
   isPrivate: boolean;
+  isProtected: boolean;
   isConstant: boolean;
 }
 
@@ -114,6 +115,8 @@ export interface MethodDefinitionNode extends ASTNode {
   function: FunctionDeclarationNode;
   isStatic: boolean;
   isConstructor: boolean;
+  isPrivate: boolean;
+  isProtected: boolean;
 }
 
 export interface IfStatementNode extends ASTNode {
@@ -143,6 +146,13 @@ export interface WhileStatementNode extends ASTNode {
   type: "WhileStatement";
   condition: ASTNode;
   body: ASTNode[];
+}
+
+export interface UpdateExpressionNode extends ASTNode {
+  type: "UpdateExpression";
+  operator: string;
+  argument: ASTNode;
+  prefix: boolean;
 }
 
 // Type guard functions for AST nodes

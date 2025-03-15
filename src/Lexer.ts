@@ -23,6 +23,7 @@ export class Lexer {
     set: TokenType.SET,
     static: TokenType.STATIC,
     private: TokenType.PRIVATE,
+    protected: TokenType.PROTECTED,
     const: TokenType.CONST,
     self: TokenType.SELF,
     Result: TokenType.RESULT,
@@ -216,30 +217,50 @@ export class Lexer {
       };
     }
 
-    const line = this.line;
-    const column = this.column;
+    // Check for string literals
+    if (this.isChar('"') || this.isChar("'")) {
+      return this.string();
+    }
 
     // Check for numeric literals
     if (/[0-9]/.test(this.currentChar)) {
       return this.number();
     }
 
-    // Check for string literals
-    if (this.isChar('"') || this.isChar("'")) {
-      return this.string();
-    }
-
-    // Check for identifiers
+    // Check for identifiers and keywords
     if (/[a-zA-Z_]/.test(this.currentChar)) {
       return this.identifier();
     }
 
+    // Check for operators and other symbols
+    const line = this.line;
+    const column = this.column;
+
+    // Check for increment operator (++)
+    if (this.isChar("+") && this.peek() === "+") {
+      this.advance(); // Skip first +
+      this.advance(); // Skip second +
+      return {
+        type: TokenType.INCREMENT,
+        value: "++",
+        line,
+        column,
+      };
+    }
+
+    // Check for other operators
+    if (this.isChar("+")) {
+      this.advance();
+      return {
+        type: TokenType.PLUS,
+        value: "+",
+        line,
+        column,
+      };
+    }
+
     // Handle other tokens
     switch (this.currentChar) {
-      case "+":
-        this.advance();
-        return { type: TokenType.PLUS, value: "+", line, column };
-
       case "-":
         this.advance();
         if (this.isChar(">")) {

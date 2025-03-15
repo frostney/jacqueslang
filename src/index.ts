@@ -1,7 +1,8 @@
-import { JacquesValue } from "./JacquesValue";
+import { JacquesValue, JacquesRecord } from "./JacquesValue";
 import { Lexer } from "./Lexer";
 import { Parser } from "./Parser";
-import { Interpreter, type Environment } from "./Interpreter";
+import { Interpreter } from "./Interpreter";
+import type { Environment } from "./Interpreter";
 import type { Token } from "./Token";
 
 export class Jacques {
