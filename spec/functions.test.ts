@@ -9,7 +9,7 @@ import type {
 describe("Functions", () => {
   it("should be able to have a function declaration", () => {
     const { env } = Jacques.runDebug(`
-      function add(a, b)
+      function add(a: Number, b: Number)
         Result := a + b;
       end;
 
@@ -23,7 +23,7 @@ describe("Functions", () => {
 
   it("should be able to have a function expression", () => {
     const { env } = Jacques.runDebug(`
-      multiply := function(a, b)
+      multiply := function(a: Number, b: Number)
         Result := a * b;
       end;
 
@@ -38,7 +38,7 @@ describe("Functions", () => {
   describe("lambda expressions", () => {
     it("parameters without parentheses if there is only one parameter", () => {
       const { env } = Jacques.runDebug(`
-        square := x => x * x;
+        square := (x: Number) => x * x;
   
         result := square(5);
       `);
@@ -50,7 +50,7 @@ describe("Functions", () => {
 
     it("parentheses are required if there are multiple parameters", () => {
       const { env } = Jacques.runDebug(`
-        add := (a, b) => a + b;
+        add := (a: Number, b: Number) => a + b;
 
         result := add(1, 2);
       `);
@@ -83,7 +83,7 @@ describe("Functions", () => {
 
   it("should be able to have a function property", () => {
     const { env } = Jacques.runDebug(`
-      function add(a, b)
+      function add(a: Number, b: Number)
         Result := a + b;
       end;
 
@@ -105,7 +105,7 @@ describe("Functions", () => {
 
   it("should be able to bind a function", () => {
     const { env } = Jacques.runDebug(`
-      function greet(name)
+      function greet(name: String)
         Result := "Hello, " + name;
       end;
 
@@ -121,7 +121,7 @@ describe("Functions", () => {
 
   it("should be able to apply a function", () => {
     const { env } = Jacques.runDebug(`
-      function sum3(a, b, c)
+      function sum3(a: Number, b: Number, c: Number)
         Result := a + b + c;
       end;
 
@@ -137,11 +137,11 @@ describe("Functions", () => {
 
   it("should be able to compose functions", () => {
     const { env } = Jacques.runDebug(`
-      function addFive(x)
+      function addFive(x: Number)
         Result := x + 5;
       end;
 
-      function double(x)
+      function double(x: Number)
         Result := x * 2;
       end;
 
@@ -159,7 +159,7 @@ describe("Functions", () => {
 
   it("should be able to introspect a function", () => {
     const { env } = Jacques.runDebug(`
-      function add(a, b)
+      function add(a: Number, b: Number)
         Result := a + b;
       end;
 
@@ -171,7 +171,7 @@ describe("Functions", () => {
 
   it("allows immediately invoked function expressions", () => {
     const { env } = Jacques.runDebug(`
-      result := (function() 
+      result: Number := (function() 
         temp := 10;
         Result := temp * 2;
       end)();

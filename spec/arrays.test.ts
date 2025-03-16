@@ -130,6 +130,7 @@ describe("Arrays", () => {
       while (index < array.Length)
         Println(array[index]);
         index++;
+      end;
     `);
 
     expect((env.array as JacquesArray).elements).toEqual([
