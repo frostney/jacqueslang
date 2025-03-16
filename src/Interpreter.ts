@@ -21,10 +21,11 @@ import type {
   ExportDeclarationNode,
   MethodDefinitionNode,
   WhileStatementNode,
-  ForStatementNode,
   UpdateExpressionNode,
   PropertyDefinitionNode,
   PropertyDeclarationNode,
+  TypeDeclarationNode,
+  TypeInferenceNode,
 } from "./ASTNode";
 import {
   JacquesValue,
@@ -162,10 +163,10 @@ export class Interpreter {
         );
       case "WhileStatement":
         return this.evaluateWhileStatement(node as WhileStatementNode, env);
-      case "ForStatement":
-        return this.visitForStatement(node as ForStatementNode);
       case "UpdateExpression":
-        return this.visitUpdateExpression(node as UpdateExpressionNode);
+        return this.visitUpdateExpression(node as UpdateExpressionNode, env);
+      case "TypeDeclaration":
+        return this.evaluateTypeDeclaration(node as TypeDeclarationNode, env);
       default:
         throw new Error(`Unknown node type: ${node.type}`);
     }
@@ -205,9 +206,9 @@ export class Interpreter {
 
       // Look for 'self' in the environment
       if ("self" in env) {
-        const self = env["self"] as unknown as Record<string, JacquesValue>;
-        if (propName in self) {
-          return self[propName];
+        const self = env["self"] as JacquesRecord;
+        if (propName in self.properties) {
+          return self.properties[propName];
         }
       }
 
@@ -396,7 +397,7 @@ export class Interpreter {
 
         // Look for 'self' in the environment
         if ("self" in env) {
-          const self = env["self"] as unknown as Record<string, JacquesValue>;
+          const self = env["self"] as JacquesRecord;
 
           const valueResult = this.evaluate(node.right, env);
 
@@ -407,11 +408,11 @@ export class Interpreter {
             );
           }
 
-          // Set constant flag
+          // Set constant flag - variable becomes immutable if `:=` is used
           valueResult.__constant__ = node.isConstant;
 
           // Assign to instance property
-          self[propName] = valueResult;
+          self.properties[propName] = valueResult;
           return valueResult;
         }
 
@@ -440,14 +441,35 @@ export class Interpreter {
         );
       }
 
-      // Set constant flag if it's a JacquesValue
+      // Set constant flag if it's a JacquesValue and the assignment uses `:=`
       if (valueResult instanceof JacquesValue) {
         valueResult.__constant__ = node.isConstant;
+
+        // Type checking if variable already exists
+        if (
+          name in env &&
+          env[name] instanceof JacquesValue &&
+          (env[name] as JacquesValue).__type__ &&
+          (env[name] as JacquesValue).__type__ !== valueResult.constructor.name
+        ) {
+          throw new Error(
+            `Type error: Cannot assign ${
+              valueResult.constructor.name
+            } to variable of type ${(env[name] as JacquesValue).__type__}`
+          );
+        }
+
+        // Set type information - use constructor name if __type__ not set
+        (valueResult as any).__type__ = valueResult.constructor.name;
       }
 
       env[name] = valueResult;
       return valueResult;
-    } else if (isMemberExpressionNode(node.left)) {
+    }
+
+    // Handle member expressions similar to before...
+    else if (isMemberExpressionNode(node.left)) {
+      // ... (Keep existing code for member expression assignments)
       const memberExpr = node.left;
       const objectResult = this.evaluate(memberExpr.object, env);
 
@@ -460,7 +482,7 @@ export class Interpreter {
           throw new Error("Cannot use self outside of a class method");
         }
 
-        const self = env.self as JacquesRecord;
+        const self = env.self.value as JacquesRecord;
         const property = isIdentifierNode(memberExpr.property)
           ? memberExpr.property.name
           : (this.evaluate(memberExpr.property, env) as JacquesValue).ToString()
@@ -721,7 +743,17 @@ export class Interpreter {
     env: Environment
   ): Function | JacquesFunction {
     const func = (...args: unknown[]): JacquesValue | null => {
-      const functionEnv: Environment = { ...env, ...this.builtins };
+      const functionEnv: Environment = {};
+
+      // Copy environment variables
+      for (const key in env) {
+        functionEnv[key] = env[key];
+      }
+
+      // Add builtins
+      for (const key in this.builtins) {
+        functionEnv[key] = this.builtins[key];
+      }
 
       // Bind parameters to arguments
       for (let i = 0; i < node.params.length; i++) {
@@ -742,11 +774,21 @@ export class Interpreter {
           argValue = new JacquesNumber(0);
         }
 
+        // Set type information
+        (argValue as any).__type__ = argValue.constructor.name;
+
+        // Mark as constant if this is a shorthand property
+        argValue.__constant__ = param.isShorthandProperty || false;
+
+        // Store parameter in environment
         functionEnv[param.name] = argValue;
       }
 
       // Set up Result variable
-      functionEnv.Result = new JacquesNumber(0);
+      const result = new JacquesNumber(0);
+      (result as any).__type__ = "Number";
+      result.__constant__ = false;
+      functionEnv.Result = result;
 
       // Execute function body
       for (const statement of node.body) {
@@ -769,6 +811,8 @@ export class Interpreter {
 
     // If the function has a name, add it to the environment
     if (node.name !== null) {
+      jacquesFunc.__constant__ = true;
+      (jacquesFunc as any).__type__ = "Function";
       env[node.name.name] = jacquesFunc;
     }
 
@@ -780,7 +824,17 @@ export class Interpreter {
     env: Environment
   ): Function | JacquesFunction {
     const lambdaFunc = (...args: unknown[]): JacquesValue | null => {
-      const lambdaEnv: Environment = { ...env, ...this.builtins };
+      const lambdaEnv: Environment = {};
+
+      // Copy environment variables
+      for (const key in env) {
+        lambdaEnv[key] = env[key];
+      }
+
+      // Add builtins
+      for (const key in this.builtins) {
+        lambdaEnv[key] = this.builtins[key];
+      }
 
       // Bind parameters to arguments
       for (let i = 0; i < node.params.length; i++) {
@@ -801,6 +855,13 @@ export class Interpreter {
           argValue = new JacquesNumber(0);
         }
 
+        // Set type information
+        (argValue as any).__type__ = argValue.constructor.name;
+
+        // Mark as constant if this is a shorthand property
+        argValue.__constant__ = param.isShorthandProperty || false;
+
+        // Store parameter in environment
         lambdaEnv[param.name] = argValue;
       }
 
@@ -817,7 +878,11 @@ export class Interpreter {
     const paramNames = node.params.map((param) => param.name);
 
     // Create a JacquesFunction wrapper with parameter names
-    return new JacquesFunction(lambdaFunc, "lambda", paramNames);
+    const jacquesFunc = new JacquesFunction(lambdaFunc, "lambda", paramNames);
+    jacquesFunc.__constant__ = true;
+    (jacquesFunc as any).__type__ = "Function";
+
+    return jacquesFunc;
   }
 
   private evaluateClassDeclaration(
@@ -866,6 +931,13 @@ export class Interpreter {
           ? (this.evaluate(prop.value, env) as JacquesValue)
           : new JacquesNumber(0);
 
+        // Set type info on property value using 'as any' to avoid readonly property error
+        (propValue as any).__type__ = propValue.constructor.name;
+
+        // Set constants - property is constant if defined with const
+        // We need to check how constants are defined in the language spec
+        propValue.__constant__ = false; // Update based on language spec
+
         if (prop.isStatic) {
           staticProperties[propName] = propValue;
         } else if (prop.isPrivate) {
@@ -883,7 +955,12 @@ export class Interpreter {
         // Create method function
         const methodFunc = (...args: JacquesValue[]): JacquesValue | null => {
           // Create a new environment for the method
-          const methodEnv: Environment = { ...env };
+          const methodEnv: Environment = {};
+
+          // Copy environment variables
+          for (const key in env) {
+            methodEnv[key] = env[key];
+          }
 
           // Set 'self' to the first argument (the instance)
           if (args.length > 0) {
@@ -905,6 +982,12 @@ export class Interpreter {
               // Otherwise use a default value of 0
               argValue = new JacquesNumber(0);
             }
+
+            // Set type information
+            (argValue as any).__type__ = argValue.constructor.name;
+
+            // Mark as constant if this is a shorthand property
+            argValue.__constant__ = param.isShorthandProperty || false;
 
             methodEnv[param.name] = argValue;
           }
@@ -928,6 +1011,10 @@ export class Interpreter {
           methodName,
           prop.function.params.map((p) => p.name)
         );
+
+        // Set method as constant
+        jacquesMethod.__constant__ = true;
+        (jacquesMethod as any).__type__ = "Function";
 
         // Store the method in the appropriate collection
         if (prop.isConstructor) {
@@ -955,6 +1042,8 @@ export class Interpreter {
     }
 
     // Store the class in the environment
+    jacquesClass.__constant__ = true;
+    (jacquesClass as any).__type__ = "Class";
     env[className] = jacquesClass;
 
     return jacquesClass;
@@ -1042,7 +1131,14 @@ export class Interpreter {
         throw new Error(`Export not found in module: ${name}`);
       }
 
-      env[name] = sourceModule[name];
+      const importedValue = sourceModule[name];
+
+      // Set type information if it's a JacquesValue
+      if (importedValue instanceof JacquesValue) {
+        (importedValue as any).__type__ = importedValue.constructor.name;
+      }
+
+      env[name] = importedValue;
     }
 
     return null;
@@ -1055,10 +1151,10 @@ export class Interpreter {
     // Copy exported values from environment
     for (const key in this.env) {
       if (
-        this.env[key] instanceof JacquesValue ||
-        typeof this.env[key] === "function"
+        this.env[key].value instanceof JacquesValue ||
+        typeof this.env[key].value === "function"
       ) {
-        exports[key] = this.env[key];
+        exports[key] = this.env[key].value;
       }
     }
 
@@ -1135,9 +1231,10 @@ export class Interpreter {
   }
 
   private visitForStatement(
-    node: ForStatementNode
+    node: ForStatementNode,
+    env: Environment
   ): JacquesValue | ReturnValue | null {
-    const collection = this.evaluate(node.collection);
+    const collection = this.evaluate(node.collection, env);
 
     if (!(collection instanceof JacquesArray)) {
       throw new Error(`Cannot iterate over non-array value`);
@@ -1150,12 +1247,9 @@ export class Interpreter {
 
     // Iterate over each element in the array
     for (const element of collection.elements) {
-      // Bind the current element to the variable name
-      this.env[node.variable.name] = element;
-
-      // Execute the body statements
+      // Execute the body statements with the current element
       for (const statement of node.body) {
-        const evalResult = this.evaluate(statement);
+        const evalResult = this.evaluate(statement, env);
 
         // If we got a return value, exit the loop
         if (isReturnValue(evalResult)) {
@@ -1181,7 +1275,10 @@ export class Interpreter {
     return result;
   }
 
-  private visitUpdateExpression(node: UpdateExpressionNode): JacquesValue {
+  private visitUpdateExpression(
+    node: UpdateExpressionNode,
+    env: Environment
+  ): JacquesValue {
     if (node.operator === "++" && !node.prefix) {
       // Handle postfix increment (x++)
       if (node.argument.type !== "Identifier") {
@@ -1191,27 +1288,73 @@ export class Interpreter {
       const variableName = (node.argument as IdentifierNode).name;
 
       // Get the current value from the environment
-      const currentValue = this.env[variableName];
-
-      if (!currentValue) {
+      if (!(variableName in env)) {
         throw new Error(`Variable ${variableName} is not defined`);
       }
+
+      const currentValue = env[variableName];
 
       if (!(currentValue instanceof JacquesNumber)) {
         throw new Error("Cannot increment non-number value");
       }
 
+      // Check if we're trying to update a constant
+      if (currentValue.__constant__) {
+        throw new Error(`Cannot update constant variable: ${variableName}`);
+      }
+
       // Create a new number with incremented value
       const newValue = new JacquesNumber(currentValue.value + 1);
 
+      // Preserve type and constant flag
+      newValue.__type__ = currentValue.__type__;
+      newValue.__constant__ = currentValue.__constant__;
+
       // Update the variable
-      this.env[variableName] = newValue;
+      env[variableName] = newValue;
 
       // For postfix increment, return the original value
       return currentValue;
     }
 
     throw new Error(`Unsupported update expression: ${node.operator}`);
+  }
+
+  private evaluateTypeDeclaration(
+    node: TypeDeclarationNode,
+    env: Environment
+  ): JacquesValue {
+    const name = node.name.name;
+    const typeAnnotation = node.typeAnnotation;
+
+    // Initialize with default value based on type
+    let value: JacquesValue;
+    switch (typeAnnotation.name) {
+      case "Number":
+        value = new JacquesNumber(0);
+        break;
+      case "String":
+        value = new JacquesString("");
+        break;
+      case "Boolean":
+        value = new JacquesBoolean(false);
+        break;
+      case "Array":
+        value = new JacquesArray([]);
+        break;
+      case "Record":
+        value = new JacquesRecord({});
+        break;
+      default:
+        throw new Error(`Unknown type: ${typeAnnotation.name}`);
+    }
+
+    // Store the type information with the value to enforce type checking
+    (value as any).__type__ = typeAnnotation.name;
+
+    // Add to environment
+    env[name] = value;
+    return value;
   }
 
   public execute(): JacquesValue | null {

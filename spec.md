@@ -2,7 +2,7 @@
 
 ## Features
 
-- Dynamic typing
+- Strong typing with type inference
 - Object-oriented
 - Functional programming
 
@@ -15,7 +15,7 @@
 
 ## Variables
 
-Variables are immutable by default and cannot be reassigned or modified. If you need to modify a variable, declare it with `=` instead of `:=`. Variables need to be initialized when declared.
+Variables are immutable by default and cannot be reassigned or modified. If you need to modify a variable, declare it with `=` instead of `:=`. Variables need to be initialized when declared. Constant variables need to have
 
 ```pascal
 num := 10;
@@ -23,6 +23,37 @@ num = 20; // This will error
 
 anotherNum = 10;
 anotherNum = 20; // This will work
+```
+
+### Types
+
+Type are automatically infered by the default value. If a default value is not provided, the type needs to provided and interally will be defined with the initial value. Types cannot be redefined for the same variable.
+
+```
+num: Number;
+str: String;
+map: Record;
+arr: Array;
+bool: Boolean;
+
+Println(num); // 0
+Println(str); // ''
+Println(map); // {}
+Println(arr); // []
+Println(bool); // true
+```
+
+```
+num1: Number := 5;
+str1: String := 'Hello World';
+```
+
+```
+// Updating values
+str2 = 'Hello';
+str2 = 'World';
+
+str2 = 5; // This will error as we are trying to redefine the type of the variable
 ```
 
 ## Primitive types
@@ -52,6 +83,13 @@ Internally all types are implemented as classes and there is syntactic sugar for
 num := Number(10);
 name := String("Jacques");
 bool := Boolean(true);
+```
+
+They can also be combined with type definitions.
+
+```pascal
+num: Number := Number(10);
+bool: Boolean := Boolean(true);
 ```
 
 All types have a `ToString` method.
@@ -160,10 +198,20 @@ end;
 
 ## Functions
 
-Functions are declared with `function` and can be assigned to variables.
+Functions are declared with `function` and can be assigned to variables. Parameters are following the same rules as variable declarations and either need an explicit type defined or a default value for an implicit type definition. Parameters cannot be defined as constants.
+
+### Function declaration
 
 ```pascal
-func := function(a, b)
+function sum(a: Number, b: Number)
+    Result := a + b;
+end;
+```
+
+### Function expresion
+
+```pascal
+func := function(a: Number, b: Number)
     Result := a + b;
 end;
 ```
@@ -177,7 +225,7 @@ Println(func(1, 2)); // 3
 Functions can be anonymous.
 
 ```pascal
-Println(function(a, b)
+Println(function(a: Number, b: Number)
     Result := a + b;
 end)(1, 2)); // 3
 ```
@@ -186,7 +234,7 @@ Functions can be returned from other functions.
 
 ```pascal
 func := function()
-    return function(a, b)
+    return function(a: Number, b: Number)
         Result := a + b;
     end;
 end;
@@ -197,11 +245,11 @@ Println(func()(1, 2)); // 3
 Functions can be used as parameters as callbacks.
 
 ```pascal
-func := function(callback)
+func := function(callback: Function)
     callback(1, 2);
 end;
 
-func(function(a, b)
+func(function(a: Number, b: Number)
     Println(a + b);
 end); // 3
 ```
@@ -209,7 +257,7 @@ end); // 3
 Functions can be defined as lambda expressions.
 
 ```pascal
-func := (a, b) => a + b;
+func := (a: Number, b: Number) => a + b;
 
 Println(func(1, 2)); // 3
 ```
@@ -225,7 +273,7 @@ Println(sum(2, 3));
 Functions have built-in methods to execute
 
 ```pascal
-sum := Function(['a', 'b'], 'Result := a + b');
+sum: Function := Function([Number(), Number()], 'Result := a + b');
 
 Println(sum.execute(2, 3)); // This is the same as Println(sum(2, 3));
 ```

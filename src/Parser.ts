@@ -25,6 +25,9 @@ import type {
   BinaryExpressionNode,
   WhileStatementNode,
   UpdateExpressionNode,
+  TypeDeclarationNode,
+  TypeInferenceNode,
+  TypeNode,
 } from "./ASTNode";
 
 import { TokenType } from "./Token";
@@ -99,17 +102,72 @@ export class Parser {
       return this.classDeclaration();
     } else if (this.match(TokenType.WHILE)) {
       return this.whileStatement();
+    } else if (this.match(TokenType.FOR)) {
+      return this.forStatement();
     } else if (this.match(TokenType.RETURN)) {
       return this.returnStatement();
     } else if (this.match(TokenType.IMPORT)) {
       return this.importDeclaration();
     } else if (this.match(TokenType.EXPORT)) {
       return this.exportDeclaration();
+    } else if (this.match(TokenType.IDENTIFIER)) {
+      // Get the identifier
+      const identifier = this.identifier();
+
+      // Type declaration with explicit type
+      if (this.match(TokenType.COLON)) {
+        return this.typeDeclaration(identifier);
+      }
+
+      // Variable assignment (with type inference)
+      if (this.match(TokenType.ASSIGN) || this.match(TokenType.CONST_ASSIGN)) {
+        const isConstant = this.currentToken.type === TokenType.CONST_ASSIGN;
+        this.eat(this.currentToken.type);
+        const right = this.expression();
+        this.optionalSemicolon();
+
+        return {
+          type: "Assignment",
+          isConstant,
+          left: identifier,
+          right,
+        } as AssignmentNode;
+      }
+
+      // Just the identifier expression
+      const expr = {
+        type: "Identifier",
+        name: identifier.name,
+      } as IdentifierNode;
+
+      this.optionalSemicolon();
+      return expr;
     } else {
       const expr = this.expression();
       this.optionalSemicolon();
       return expr;
     }
+  }
+
+  private typeDeclaration(identifier: IdentifierNode): TypeDeclarationNode {
+    this.eat(TokenType.COLON);
+    const typeAnnotation = this.parseType();
+    return {
+      type: "TypeDeclaration",
+      name: identifier,
+      typeAnnotation,
+    } as TypeDeclarationNode;
+  }
+
+  private parseType(): TypeNode {
+    const name = this.identifier().name;
+    let isArray = false;
+
+    return {
+      type: "Type",
+      name,
+      isArray,
+    } as TypeNode;
   }
 
   // While statement
@@ -1635,5 +1693,17 @@ export class Parser {
       params,
       body,
     } as LambdaExpressionNode;
+  }
+
+  private block(): ASTNode[] {
+    this.eat(TokenType.LBRACE);
+    const statements: ASTNode[] = [];
+
+    while (!this.match(TokenType.RBRACE)) {
+      statements.push(this.statement());
+    }
+
+    this.eat(TokenType.RBRACE);
+    return statements;
   }
 }
