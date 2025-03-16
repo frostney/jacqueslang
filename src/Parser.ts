@@ -1026,8 +1026,13 @@ export class Parser {
         const param = this.identifier();
         param.isShorthandProperty = true;
 
+        // Check for type annotation
+        if (this.match(TokenType.COLON)) {
+          this.eat(TokenType.COLON);
+          param.typeAnnotation = this.parseType();
+        }
         // Check for default value
-        if (this.match(TokenType.ASSIGN)) {
+        else if (this.match(TokenType.ASSIGN)) {
           this.eat(TokenType.ASSIGN);
           // Store the default value expression
           param.defaultValue = this.expression();
@@ -1037,11 +1042,20 @@ export class Parser {
       } else {
         const param = this.identifier();
 
+        // Check for type annotation
+        if (this.match(TokenType.COLON)) {
+          this.eat(TokenType.COLON);
+          param.typeAnnotation = this.parseType();
+        }
         // Check for default value
-        if (this.match(TokenType.ASSIGN)) {
+        else if (this.match(TokenType.ASSIGN)) {
           this.eat(TokenType.ASSIGN);
           // Store the default value expression
           param.defaultValue = this.expression();
+        }
+        // Check for const assignment (which is invalid for parameters)
+        else if (this.match(TokenType.CONST_ASSIGN)) {
+          throw new Error("Parameters cannot be defined as constants");
         }
 
         params.push(param);
@@ -1056,8 +1070,13 @@ export class Parser {
           const param = this.identifier();
           param.isShorthandProperty = true;
 
+          // Check for type annotation
+          if (this.match(TokenType.COLON)) {
+            this.eat(TokenType.COLON);
+            param.typeAnnotation = this.parseType();
+          }
           // Check for default value
-          if (this.match(TokenType.ASSIGN)) {
+          else if (this.match(TokenType.ASSIGN)) {
             this.eat(TokenType.ASSIGN);
             // Store the default value expression
             param.defaultValue = this.expression();
@@ -1067,11 +1086,20 @@ export class Parser {
         } else {
           const param = this.identifier();
 
+          // Check for type annotation
+          if (this.match(TokenType.COLON)) {
+            this.eat(TokenType.COLON);
+            param.typeAnnotation = this.parseType();
+          }
           // Check for default value
-          if (this.match(TokenType.ASSIGN)) {
+          else if (this.match(TokenType.ASSIGN)) {
             this.eat(TokenType.ASSIGN);
             // Store the default value expression
             param.defaultValue = this.expression();
+          }
+          // Check for const assignment (which is invalid for parameters)
+          else if (this.match(TokenType.CONST_ASSIGN)) {
+            throw new Error("Parameters cannot be defined as constants");
           }
 
           params.push(param);
@@ -1667,13 +1695,39 @@ export class Parser {
       if (!this.match(TokenType.RPAREN)) {
         // Parse first parameter
         if (this.match(TokenType.IDENTIFIER)) {
-          params.push(this.identifier());
+          const param = this.identifier();
+
+          // Check for type annotation
+          if (this.match(TokenType.COLON)) {
+            this.eat(TokenType.COLON);
+            param.typeAnnotation = this.parseType();
+          }
+          // Check for default value
+          else if (this.match(TokenType.ASSIGN)) {
+            this.eat(TokenType.ASSIGN);
+            param.defaultValue = this.expression();
+          }
+
+          params.push(param);
 
           // Parse additional parameters
           while (this.match(TokenType.COMMA)) {
             this.eat(TokenType.COMMA);
             if (this.match(TokenType.IDENTIFIER)) {
-              params.push(this.identifier());
+              const additionalParam = this.identifier();
+
+              // Check for type annotation
+              if (this.match(TokenType.COLON)) {
+                this.eat(TokenType.COLON);
+                additionalParam.typeAnnotation = this.parseType();
+              }
+              // Check for default value
+              else if (this.match(TokenType.ASSIGN)) {
+                this.eat(TokenType.ASSIGN);
+                additionalParam.defaultValue = this.expression();
+              }
+
+              params.push(additionalParam);
             } else {
               throw new Error(
                 "Expected identifier after comma in lambda parameters"
@@ -1690,6 +1744,11 @@ export class Parser {
     // Single parameter without parentheses
     else if (this.match(TokenType.IDENTIFIER)) {
       params.push(this.identifier());
+
+      // Single parameters without parentheses cannot have type annotations in Jacques
+      if (this.match(TokenType.COLON)) {
+        throw new Error("Parameter type annotations require parentheses");
+      }
     } else {
       throw new Error(
         "Expected parameter list or identifier for lambda expression"

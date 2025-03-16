@@ -1,3 +1,5 @@
+// TODO: We need to find a way where we allow specific methods to be exported into the Interpreter while others should only be available in the host environment
+
 export abstract class JacquesValue {
   __constant__: boolean = false;
   __call__?(args: JacquesValue[]): JacquesValue | null; // Optional __call__ method for callable values
@@ -151,6 +153,19 @@ export class JacquesBoolean extends JacquesValue {
 
   ToNumber(): JacquesNumber {
     return new JacquesNumber(this.value ? 1 : 0);
+  }
+
+  static FromBoolean(value: boolean): JacquesBoolean {
+    // TODO: Don't allow to export this function in the Interpreter
+    return new JacquesBoolean(value);
+  }
+
+  static True(): JacquesBoolean {
+    return new JacquesBoolean(true);
+  }
+
+  static False(): JacquesBoolean {
+    return new JacquesBoolean(false);
   }
 }
 
@@ -366,10 +381,17 @@ export class JacquesFunction extends JacquesValue {
       return originalFunc(...boundArgs, ...args) as JacquesValue | null;
     };
 
+    // Create a new function with the correct name and parameters
+    // The params should be the original params minus the number of bound arguments
+    const remainingParams =
+      this.params.length > boundArgs.length
+        ? this.params.slice(boundArgs.length)
+        : [];
+
     return new JacquesFunction(
       boundFunc,
       `${this.name}_bound`,
-      this.params.slice(boundArgs.length)
+      remainingParams
     );
   }
 
@@ -415,6 +437,11 @@ export class JacquesFunction extends JacquesValue {
 
   NotEquals(other: JacquesValue): JacquesBoolean {
     return this.Equals(other).BinaryNot();
+  }
+
+  static FromFunction(func: Function): JacquesFunction {
+    // TODO: Don't allow to export this function in the Interpreter
+    return new JacquesFunction(func);
   }
 }
 

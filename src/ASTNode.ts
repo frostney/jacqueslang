@@ -27,6 +27,7 @@ export interface IdentifierNode extends ASTNode {
   name: string;
   isShorthandProperty?: boolean;
   defaultValue?: ASTNode;
+  typeAnnotation?: TypeNode;
 }
 
 export interface BinaryExpressionNode extends ASTNode {
