@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { Jacques } from "../src";
+import { runDebug } from "../src";
 import {
   JacquesRecord,
   JacquesString,
@@ -9,7 +9,7 @@ import {
 
 describe("Records", () => {
   it("should be able to create an object", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       object := { name: "John", age: 30 };
     `);
 
@@ -20,7 +20,7 @@ describe("Records", () => {
   });
 
   it("should be able to add a key to a map", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map := { name: "John", age: 30 };
       map2 := map.Add("name2", "John");
     `);
@@ -38,7 +38,7 @@ describe("Records", () => {
   });
 
   it("should be able to remove a key from a map", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map := { name: "John", age: 30 };
       map2 := map.Remove("name");
     `);
@@ -54,7 +54,7 @@ describe("Records", () => {
   });
 
   it("should be able to iterate over a map", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map := { name: "John", age: 30 };
       map.ForEach((key, value) => Println(key, value));
     `);
@@ -66,7 +66,7 @@ describe("Records", () => {
   });
 
   it("should be able to check if a map contains a key", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map := { name: "John", age: 30 };
       result := map.ContainsKey("name");
     `);
@@ -75,7 +75,7 @@ describe("Records", () => {
   });
 
   it("should be able to check if a map contains a value", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map := { name: "John", age: 30 };
       result := map.ContainsValue("John");
     `);
@@ -84,7 +84,7 @@ describe("Records", () => {
   });
 
   it("should be able to get the size of a map", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map := { name: "John", age: 30 };
       result := map.Size;
     `);
@@ -93,7 +93,7 @@ describe("Records", () => {
   });
 
   it("allows nested maps", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map := { name: "John", age: 30, address: { city: "New York", country: "USA" } };
     `);
 
@@ -108,7 +108,7 @@ describe("Records", () => {
   });
 
   it("should be able to merge two maps", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map1 := { name: "John", age: 30 };
       map2 := { name2: "Jane", age2: 25 };
       result := map1.Merge(map2);
@@ -123,7 +123,7 @@ describe("Records", () => {
   });
 
   it("should be able to check if a map is equal to another map", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map1 := { name: "John", age: 30 };
       map2 := { name: "John", age: 30 };
       result := map1.Equals(map2);
@@ -133,7 +133,7 @@ describe("Records", () => {
   });
 
   it("should be able to check if a map is not equal to another map", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map1 := { name: "John", age: 30 };
       map2 := { name: "Jane", age: 25 };
       result := map1.NotEquals(map2);
@@ -143,7 +143,7 @@ describe("Records", () => {
   });
 
   it("should be able to convert a map to a string", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map := { name: "John", age: 30 };
       result := map.ToString();
     `);
@@ -155,7 +155,7 @@ describe("Records", () => {
 
   describe("should be able to get a value from a map", () => {
     it("using the `Get` method", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         map := { name: "John", age: 30 };
         result := map.Get("name");
       `);
@@ -164,7 +164,7 @@ describe("Records", () => {
     });
 
     it("using the `[]` operator", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         map := { name: "John", age: 30 };
         result := map["name"];
       `);
@@ -173,7 +173,7 @@ describe("Records", () => {
     });
 
     it("using the `.` operator", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         map := { name: "John", age: 30 };
         result := map.name;
       `);
@@ -184,7 +184,7 @@ describe("Records", () => {
 
   describe("should be able to set a value in a map", () => {
     it("using the `Set` method", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         map := { name: "John", age: 30 };
         map2 := map.Set("name", "Jane");
       `);
@@ -202,7 +202,7 @@ describe("Records", () => {
   });
 
   it("should be able to convert to JSON", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       map := { name: "John", age: 30 };
       result := map.ToJSON();
     `);

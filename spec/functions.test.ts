@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { Jacques } from "../src";
+import { runDebug } from "../src";
 import type {
   JacquesFunction,
   JacquesNumber,
@@ -8,7 +8,7 @@ import type {
 
 describe("Functions", () => {
   it("should be able to have a function declaration", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       function add(a: Number, b: Number)
         Result := a + b;
       end;
@@ -22,7 +22,7 @@ describe("Functions", () => {
   });
 
   it("should be able to have a function expression", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       multiply := function(a: Number, b: Number)
         Result := a * b;
       end;
@@ -37,7 +37,7 @@ describe("Functions", () => {
 
   describe("lambda expressions", () => {
     it("parameter parentheses are required even if there is only one parameter with a type definition", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         square := (x: Number) => x * x;
   
         result := square(5);
@@ -49,7 +49,7 @@ describe("Functions", () => {
     });
 
     it("parameter parentheses are required even if there is only one parameter with a default value", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         square := (x = 0) => x * x;
   
         result := square(5);
@@ -61,7 +61,7 @@ describe("Functions", () => {
     });
 
     it("parameter parentheses are required if there are multiple parameters", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         add := (a: Number, b: Number) => a + b;
 
         result := add(1, 2);
@@ -73,7 +73,7 @@ describe("Functions", () => {
     });
 
     it("can have a default parameter", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         greet := (name = "Guest") => "Hello, " + name;
 
         result := greet();
@@ -84,7 +84,7 @@ describe("Functions", () => {
   });
 
   it("should be able to have a default parameter", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       function greet(name = "Guest")
         Result := "Hello, " + name;
       end;
@@ -98,7 +98,7 @@ describe("Functions", () => {
   });
 
   it("should be able to have a function property", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       function add(a: Number, b: Number)
         Result := a + b;
       end;
@@ -111,7 +111,7 @@ describe("Functions", () => {
   });
 
   it("should be able to bind a function", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       function greet(name: String)
         Result := "Hello, " + name;
       end;
@@ -128,7 +128,7 @@ describe("Functions", () => {
   });
 
   it("should be able to apply a function", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       function sum3(a: Number, b: Number, c: Number)
         Result := a + b + c;
       end;
@@ -144,7 +144,7 @@ describe("Functions", () => {
   });
 
   it("should be able to compose functions", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       function addFive(x: Number)
         Result := x + 5;
       end;
@@ -166,7 +166,7 @@ describe("Functions", () => {
   });
 
   it("should be able to introspect a function", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       function add(a: Number, b: Number)
         Result := a + b;
       end;
@@ -179,7 +179,7 @@ describe("Functions", () => {
   });
 
   it("allows immediately invoked function expressions", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       result: Number := (function() 
         temp := 10;
         Result := temp * 2;
@@ -191,7 +191,7 @@ describe("Functions", () => {
 
   describe("closures", () => {
     it("should be able to make a counter", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         function makeCounter()
           counter = 0;
           
@@ -214,7 +214,7 @@ describe("Functions", () => {
     });
 
     it("should be able to make a function that returns a function", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         function makeAdder(x)
           Result := function(y)
             Result := x + y;
@@ -231,7 +231,7 @@ describe("Functions", () => {
   });
 
   it("should be able to have a function as an argument", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       function add(a, b)
         Result := a + b;
       end;
@@ -247,7 +247,7 @@ describe("Functions", () => {
   });
 
   it("should be able to call functions recursively", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       function factorial(n: Number)
         if n <= 1
           Result := 1;
@@ -265,7 +265,7 @@ describe("Functions", () => {
   it("should error if a parameter is defined as a constant", () => {
     let errorMessage = "";
     try {
-      Jacques.runDebug(`
+      runDebug(`
         // This will fail parsing, which is expected
         function add(a := 0, b := 0)
           Result := a + b;

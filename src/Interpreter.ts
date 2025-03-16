@@ -1,3 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
+/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
+/* eslint-disable @typescript-eslint/no-base-to-string */
+
 import type {
   ProgramNode,
   ASTNode,
@@ -19,13 +30,9 @@ import type {
   ReturnStatementNode,
   ImportDeclarationNode,
   ExportDeclarationNode,
-  MethodDefinitionNode,
   WhileStatementNode,
   UpdateExpressionNode,
-  PropertyDefinitionNode,
-  PropertyDeclarationNode,
   TypeDeclarationNode,
-  TypeInferenceNode,
   BlockStatementNode,
 } from "./ASTNode";
 import {
@@ -40,12 +47,7 @@ import {
   JacquesClass,
 } from "./JacquesValue";
 import type { ReturnValue } from "./JacquesValue";
-import {
-  isIdentifierNode,
-  isMemberExpressionNode,
-  isMethodDefinitionNode,
-  isPropertyDefinitionNode,
-} from "./ASTNode";
+import { isMethodDefinitionNode, isPropertyDefinitionNode } from "./ASTNode";
 
 import { Lexer } from "./Lexer";
 import { Parser } from "./Parser";
@@ -402,7 +404,7 @@ export class Interpreter {
       throw new Error("Left side of assignment must be an identifier");
     }
 
-    const name = (node.left as IdentifierNode).name;
+    const name = node.left.name;
     const valueResult = this.evaluate(node.right, env);
 
     // For an existing variable (reassignment)
@@ -898,7 +900,7 @@ export class Interpreter {
             result = this.evaluate(statement, methodEnv);
 
             if (isReturnValue(result)) {
-              return (result as ReturnValue).__value__;
+              return result.__value__;
             }
           }
 

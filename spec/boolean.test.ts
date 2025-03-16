@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { Jacques } from "../src";
+import { runDebug } from "../src";
 import type {
   JacquesBoolean,
   JacquesNumber,
@@ -8,7 +8,7 @@ import type {
 
 describe("Boolean", () => {
   it("should be able to compare two booleans", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       result := true == false;
       result2 := true != false;
     `);
@@ -18,7 +18,7 @@ describe("Boolean", () => {
   });
 
   it("should be able to convert a boolean to a string", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       boolean := true;
       result := boolean.ToString();
     `);
@@ -27,7 +27,7 @@ describe("Boolean", () => {
   });
 
   it("should be able to convert a boolean to a number", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       boolean := true;
       result := boolean.ToNumber();
     `);

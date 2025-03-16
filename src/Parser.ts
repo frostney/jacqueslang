@@ -31,9 +31,11 @@ import type {
 
 import { TokenType } from "./Token";
 
+import { convertToString } from "./utils";
+
 export class Parser {
   private tokens: Token[];
-  private position: number = 0;
+  private position = 0;
   private currentToken: Token;
 
   constructor(tokens: Token[]) {
@@ -55,7 +57,11 @@ export class Parser {
     }
 
     throw new Error(
-      `Unexpected token: ${this.currentToken.type}, expected: ${tokenType} at line ${this.currentToken.line}, column ${this.currentToken.column}`
+      `Unexpected token: ${
+        this.currentToken.type
+      }, expected: ${tokenType} at line ${convertToString(
+        this.currentToken.line
+      )}, column ${convertToString(this.currentToken.column)}`
     );
   }
 
@@ -186,7 +192,7 @@ export class Parser {
 
   private parseType(): TypeNode {
     const name = this.identifier().name;
-    let isArray = false;
+    const isArray = false;
 
     return {
       type: "Type",
@@ -257,7 +263,7 @@ export class Parser {
         // Try to parse as lambda expression
         const expr = this.lambdaExpression();
         return expr;
-      } catch (e) {
+      } catch {
         // Not a lambda, rewind and continue with normal expression parsing
         this.position = startPosition;
         this.currentToken = this.tokens[this.position];
@@ -283,7 +289,7 @@ export class Parser {
         // Not a lambda, rewind and continue with normal expression parsing
         this.position = startPosition;
         this.currentToken = this.tokens[this.position];
-      } catch (e) {
+      } catch {
         // Not a lambda, rewind and continue with normal expression parsing
         this.position = startPosition;
         this.currentToken = this.tokens[this.position];
@@ -437,7 +443,7 @@ export class Parser {
         // Not a lambda, rewind
         this.position = startPosition;
         this.currentToken = this.tokens[this.position];
-      } catch (e) {
+      } catch {
         // Error parsing as lambda, rewind
         this.position = startPosition;
         this.currentToken = this.tokens[this.position];
@@ -614,6 +620,8 @@ export class Parser {
   private callMemberExpression(): ASTNode {
     let expr = this.primaryExpression();
 
+    // TODO: Is there a way to without the while loop?
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (true) {
       if (this.match(TokenType.LPAREN)) {
         expr = this.callExpression(expr);
@@ -689,7 +697,7 @@ export class Parser {
           this.currentToken = this.tokens[this.position];
           return true;
         }
-      } catch (e) {
+      } catch {
         // Restore position on error
         this.position = savedPosition;
         this.currentToken = this.tokens[this.position];
@@ -716,7 +724,7 @@ export class Parser {
           this.currentToken = this.tokens[this.position];
           return true;
         }
-      } catch (e) {
+      } catch {
         // Restore position on error
         this.position = savedPosition;
         this.currentToken = this.tokens[this.position];
@@ -780,7 +788,7 @@ export class Parser {
         return this.stringLiteral();
       case TokenType.BOOLEAN:
         return this.booleanLiteral();
-      case TokenType.IDENTIFIER:
+      case TokenType.IDENTIFIER: {
         const id = this.identifier();
         // Check if the next token is INCREMENT (++)
         if (this.match(TokenType.INCREMENT)) {
@@ -797,6 +805,7 @@ export class Parser {
           return this.typeDeclaration(id);
         }
         return id;
+      }
       case TokenType.LPAREN:
         return this.parenthesizedExpression();
       case TokenType.LBRACKET:
@@ -807,7 +816,11 @@ export class Parser {
         return this.functionExpression();
       default:
         throw new Error(
-          `Unexpected token: ${this.currentToken.type} at line ${this.currentToken.line}, column ${this.currentToken.column}`
+          `Unexpected token: ${
+            this.currentToken.type
+          } at line ${convertToString(
+            this.currentToken.line
+          )}, column ${convertToString(this.currentToken.column)}`
         );
     }
   }
@@ -1197,12 +1210,16 @@ export class Parser {
             } as PropertyDefinitionNode);
           } else {
             throw new Error(
-              `Expected '(' or '=' after static identifier at line ${this.currentToken.line}, column ${this.currentToken.column}`
+              `Expected '(' or '=' after static identifier at line ${convertToString(
+                this.currentToken.line
+              )}, column ${convertToString(this.currentToken.column)}`
             );
           }
         } else {
           throw new Error(
-            `Expected identifier after 'static' keyword at line ${this.currentToken.line}, column ${this.currentToken.column}`
+            `Expected identifier after 'static' keyword at line ${convertToString(
+              this.currentToken.line
+            )}, column ${convertToString(this.currentToken.column)}`
           );
         }
       } else if (this.match(TokenType.PRIVATE)) {
@@ -1253,12 +1270,16 @@ export class Parser {
             } as PropertyDefinitionNode);
           } else {
             throw new Error(
-              `Expected '(' or '=' after private identifier at line ${this.currentToken.line}, column ${this.currentToken.column}`
+              `Expected '(' or '=' after private identifier at line ${convertToString(
+                this.currentToken.line
+              )}, column ${convertToString(this.currentToken.column)}`
             );
           }
         } else {
           throw new Error(
-            `Expected identifier after 'private' keyword at line ${this.currentToken.line}, column ${this.currentToken.column}`
+            `Expected identifier after 'private' keyword at line ${convertToString(
+              this.currentToken.line
+            )}, column ${convertToString(this.currentToken.column)}`
           );
         }
       } else if (this.match(TokenType.PROTECTED)) {
@@ -1309,12 +1330,16 @@ export class Parser {
             } as PropertyDefinitionNode);
           } else {
             throw new Error(
-              `Expected '(' or '=' after protected identifier at line ${this.currentToken.line}, column ${this.currentToken.column}`
+              `Expected '(' or '=' after protected identifier at line ${convertToString(
+                this.currentToken.line
+              )}, column ${convertToString(this.currentToken.column)}`
             );
           }
         } else {
           throw new Error(
-            `Expected identifier after 'protected' keyword at line ${this.currentToken.line}, column ${this.currentToken.column}`
+            `Expected identifier after 'protected' keyword at line ${convertToString(
+              this.currentToken.line
+            )}, column ${convertToString(this.currentToken.column)}`
           );
         }
       } else if (this.match(TokenType.CONST)) {
@@ -1354,7 +1379,11 @@ export class Parser {
         }
       } else {
         throw new Error(
-          `Unexpected token in class body: ${this.currentToken.type} at line ${this.currentToken.line}, column ${this.currentToken.column}`
+          `Unexpected token in class body: ${
+            this.currentToken.type
+          } at line ${convertToString(
+            this.currentToken.line
+          )}, column ${convertToString(this.currentToken.column)}`
         );
       }
     }
@@ -1524,12 +1553,18 @@ export class Parser {
         } else {
           // Error: setter must have a parameter
           throw new Error(
-            `Setter must have a parameter at line ${this.currentToken.line}, column ${this.currentToken.column}`
+            `Setter must have a parameter at line ${convertToString(
+              this.currentToken.line
+            )}, column ${convertToString(this.currentToken.column)}`
           );
         }
       } else {
         throw new Error(
-          `Unexpected token in property declaration: ${this.currentToken.type} at line ${this.currentToken.line}, column ${this.currentToken.column}`
+          `Unexpected token in property declaration: ${
+            this.currentToken.type
+          } at line ${convertToString(
+            this.currentToken.line
+          )}, column ${convertToString(this.currentToken.column)}`
         );
       }
     }
@@ -1548,8 +1583,8 @@ export class Parser {
   // Method definition
   private methodDefinition(
     isStatic: boolean,
-    isPrivate: boolean = false,
-    isProtected: boolean = false
+    isPrivate = false,
+    isProtected = false
   ): MethodDefinitionNode {
     const name = this.identifier();
     const params = this.functionParameters();

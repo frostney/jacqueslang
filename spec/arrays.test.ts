@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { Jacques } from "../src";
+import { runDebug } from "../src";
 import {
   JacquesArray,
   JacquesBoolean,
@@ -8,7 +8,7 @@ import {
 
 describe("Arrays", () => {
   it("should be able to create an array", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       array := [1, 2, 3];
     `);
 
@@ -20,7 +20,7 @@ describe("Arrays", () => {
   });
 
   it("should be able to add an element to an array", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       array := [1, 2, 3];
       array2 := array.Add(4);
     `);
@@ -40,7 +40,7 @@ describe("Arrays", () => {
   });
 
   it("should be able to remove an element from an array", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       array := [1, 2, 3];
       array2 := array.Remove(1);
     `);
@@ -59,7 +59,7 @@ describe("Arrays", () => {
 
   describe("should be able to get an element from an array", () => {
     it("using the `Get` method", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         array := [1, 2, 3];
         result := array.Get(1);
       `);
@@ -68,7 +68,7 @@ describe("Arrays", () => {
     });
 
     it("using the `[]` operator", () => {
-      const { env } = Jacques.runDebug(`
+      const { env } = runDebug(`
         array := [1, 2, 3];
         result := array[1];
       `);
@@ -78,7 +78,7 @@ describe("Arrays", () => {
   });
 
   it("should be able to get the length of an array", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       array := [1, 2, 3];
       result := array.Length;
     `);
@@ -87,7 +87,7 @@ describe("Arrays", () => {
   });
 
   it("should be able to iterate over an array", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       array := [1, 2, 3];
       array.ForEach(element => Println(element));
     `);
@@ -100,7 +100,7 @@ describe("Arrays", () => {
   });
 
   it("should be able to iterate over an array with a for loop", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       array := [1, 2, 3];
       val1 = 0;
       val2 = 0;
@@ -124,7 +124,7 @@ describe("Arrays", () => {
   });
 
   it("should be able to iterate over an array with a while loop", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       array := [1, 2, 3];
       index = 0;
       while (index < array.Length)
@@ -141,7 +141,7 @@ describe("Arrays", () => {
   });
 
   it("should be able to map over an array", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       array := [1, 2, 3];
       result := array.Map(element => element * 2);
     `);
@@ -154,7 +154,7 @@ describe("Arrays", () => {
   });
 
   it("should be able to filter an array", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       array := [1, 2, 3];
       result := array.Filter(element => element % 2 == 0);
     `);
@@ -165,7 +165,7 @@ describe("Arrays", () => {
   });
 
   it("should be able to reduce an array", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       array := [1, 2, 3];
       result := array.Reduce(0, (acc, element) => acc + element);
     `);
@@ -174,7 +174,7 @@ describe("Arrays", () => {
   });
 
   it("should be able to check if an array contains an element", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       array := [1, 2, 3];
       result := array.Contains(2);
     `);

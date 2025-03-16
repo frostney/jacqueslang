@@ -50,7 +50,7 @@ export interface AssignmentNode extends ASTNode {
   right: ASTNode;
 }
 
-export type ArrayLiteralNodeElement =
+type ArrayLiteralNodeElement =
   | NumberLiteralNode
   | StringLiteralNode
   | BooleanLiteralNode
@@ -62,7 +62,7 @@ export interface ArrayLiteralNode extends ASTNode {
   elements: ArrayLiteralNodeElement[];
 }
 
-export type ObjectLiteralNodePropertyValue =
+type ObjectLiteralNodePropertyValue =
   | NumberLiteralNode
   | StringLiteralNode
   | BooleanLiteralNode
@@ -187,26 +187,6 @@ export interface TypeDeclarationNode extends ASTNode {
   typeAnnotation: TypeNode;
 }
 
-export interface TypeInferenceNode extends ASTNode {
-  type: "TypeInference";
-  value: ASTNode;
-}
-
-// Type guard functions for AST nodes
-export function isIdentifierNode(node: ASTNode): node is IdentifierNode {
-  return node.type === "Identifier";
-}
-
-export function isStringLiteralNode(node: ASTNode): node is StringLiteralNode {
-  return node.type === "StringLiteral";
-}
-
-export function isMemberExpressionNode(
-  node: ASTNode
-): node is MemberExpressionNode {
-  return node.type === "MemberExpression";
-}
-
 export function isMethodDefinitionNode(
   node: ASTNode
 ): node is MethodDefinitionNode {
@@ -217,18 +197,4 @@ export function isPropertyDefinitionNode(
   node: ASTNode
 ): node is PropertyDefinitionNode {
   return node.type === "PropertyDefinition";
-}
-
-export function isTypeNode(node: ASTNode): node is TypeNode {
-  return node.type === "Type";
-}
-
-export function isTypeDeclarationNode(
-  node: ASTNode
-): node is TypeDeclarationNode {
-  return node.type === "TypeDeclaration";
-}
-
-export function isTypeInferenceNode(node: ASTNode): node is TypeInferenceNode {
-  return node.type === "TypeInference";
 }

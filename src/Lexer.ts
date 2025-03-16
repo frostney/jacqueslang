@@ -1,12 +1,12 @@
 import type { Token } from "./Token";
 import { TokenType } from "./Token";
+import { convertToString } from "./utils";
 
 export class Lexer {
   private input: string;
-  private position: number = 0;
-  private line: number = 1;
-  private column: number = 1;
-  // Explicitly define the type to allow any string character
+  private position = 0;
+  private line = 1;
+  private column = 1;
   private currentChar: string | null = null;
 
   private keywords: Record<string, TokenType> = {
@@ -40,7 +40,7 @@ export class Lexer {
     this.currentChar = this.input.length > 0 ? this.input[0] : null;
   }
 
-  private advance(): void {
+  private advance(): string | null {
     this.position++;
 
     if (this.currentChar === "\n") {
@@ -55,6 +55,8 @@ export class Lexer {
     } else {
       this.currentChar = this.input[this.position];
     }
+
+    return this.currentChar;
   }
 
   private skipWhitespace(): void {
@@ -63,32 +65,68 @@ export class Lexer {
     }
   }
 
-  private isChar(char: string): boolean {
-    // Return false if currentChar is null
-    return this.currentChar !== null && this.currentChar === char;
+  // Helper method that safely checks if currentChar equals a specific character
+  private isCurrentChar(c: string): boolean {
+    return this.currentChar === c;
+  }
+
+  // Helper method that safely checks if currentChar is a newline
+  private isNewline(): boolean {
+    return this.currentChar === "\n";
   }
 
   private skipComment(): void {
     // Check for line comments
-    if (this.currentChar === "/" && this.peek() === "/") {
+    if (this.isCurrentChar("/") && this.peek() === "/") {
       // Consume the // characters
       this.advance();
       this.advance();
 
       // Skip until end of line or end of file
       while (this.currentChar !== null) {
-        if ((this.currentChar as string) === ("\n" as string)) break;
+        if (this.isNewline()) break;
         this.advance();
       }
 
       // Consume the newline character if present
-      if ((this.currentChar as string) === ("\n" as string)) {
+      if (this.isNewline()) {
         this.advance();
       }
+    } else if (this.isCurrentChar("/") && this.peek() === "*") {
+      this.advance(); // Consume /
+      this.advance(); // Consume *
+      this.skipMultilineComment();
     }
   }
 
-  private peek(n: number = 1): string | null {
+  private skipMultilineComment(): void {
+    // Skip until */ is found
+    let nesting = 1;
+
+    while (nesting > 0 && this.currentChar !== null) {
+      if (this.isCurrentChar("*") && this.peek() === "/") {
+        this.advance();
+        this.advance();
+        nesting--;
+      } else if (this.isCurrentChar("/") && this.peek() === "*") {
+        this.advance();
+        this.advance();
+        nesting++;
+      } else {
+        this.advance();
+      }
+    }
+
+    if (nesting > 0) {
+      throw new Error(
+        `Unterminated multiline comment at line ${convertToString(
+          this.line
+        )}, column ${convertToString(this.column)}`
+      );
+    }
+  }
+
+  private peek(n = 1): string | null {
     const peekPos = this.position + n;
     if (peekPos >= this.input.length) {
       return null;
@@ -118,7 +156,9 @@ export class Lexer {
     const quote = this.currentChar;
     if (quote === null) {
       throw new Error(
-        `Expected quote character at line ${this.line}, column ${this.column}`
+        `Expected quote character at line ${convertToString(
+          this.line
+        )}, column ${convertToString(this.column)}`
       );
     }
 
@@ -128,44 +168,48 @@ export class Lexer {
     const line = this.line;
     const column = this.column - 1;
 
-    while (this.currentChar !== null && this.currentChar !== quote) {
-      if (this.isChar("\\")) {
+    // Handle escape sequences
+    if (this.currentChar === null) {
+      throw new Error(
+        `Unterminated escape sequence at line ${convertToString(
+          this.line
+        )}, column ${convertToString(this.column)}`
+      );
+    }
+
+    while (this.currentChar !== quote) {
+      if (this.isCurrentChar("\\")) {
         this.advance(); // Skip the backslash
 
-        // Handle escape sequences
-        if (this.currentChar === null) {
-          throw new Error(
-            `Unterminated escape sequence at line ${this.line}, column ${this.column}`
-          );
-        }
-
-        // Use isChar function to check character
-        if (this.isChar("n")) {
+        // Use isCurrentChar function to check character
+        if (this.isCurrentChar("n")) {
           result += "\n";
-        } else if (this.isChar("t")) {
+        } else if (this.isCurrentChar("t")) {
           result += "\t";
-        } else if (this.isChar("r")) {
+        } else if (this.isCurrentChar("r")) {
           result += "\r";
-        } else if (this.isChar("\\")) {
+        } else if (this.isCurrentChar("\\")) {
           result += "\\";
-        } else if (this.isChar('"')) {
+        } else if (this.isCurrentChar('"')) {
           result += '"';
-        } else if (this.isChar("'")) {
+        } else if (this.isCurrentChar("'")) {
           result += "'";
-        } else if (this.currentChar !== null) {
+        } else {
           result += this.currentChar; // Keep the character as-is
         }
-      } else if (this.currentChar !== null) {
+      } else {
         result += this.currentChar;
       }
       this.advance();
     }
 
-    if (this.currentChar === null) {
-      throw new Error(
-        `Unterminated string starting at line ${line}, column ${column}`
-      );
-    }
+    // if (this.currentChar === null) {
+    //   throw new Error(
+    //     `Unterminated string starting at line ${convertToString(
+    //       line
+    //     )}, column ${convertToString(column)}`
+    //   );
+    // }
 
     this.advance(); // Skip the closing quote
 
@@ -187,7 +231,7 @@ export class Lexer {
       this.advance();
     }
 
-    const type = this.keywords[result] || TokenType.IDENTIFIER;
+    const type = this.keywords[result] ?? TokenType.IDENTIFIER;
     let value: string | boolean = result;
 
     if (type === TokenType.BOOLEAN) {
@@ -218,7 +262,7 @@ export class Lexer {
     }
 
     // Check for string literals
-    if (this.isChar('"') || this.isChar("'")) {
+    if (this.isCurrentChar('"') || this.isCurrentChar("'")) {
       return this.string();
     }
 
@@ -237,7 +281,7 @@ export class Lexer {
     const column = this.column;
 
     // Check for increment operator (++)
-    if (this.isChar("+") && this.peek() === "+") {
+    if (this.isCurrentChar("+") && this.peek() === "+") {
       this.advance(); // Skip first +
       this.advance(); // Skip second +
       return {
@@ -249,21 +293,19 @@ export class Lexer {
     }
 
     // Check for other operators
-    if (this.isChar("+")) {
-      this.advance();
-      return {
-        type: TokenType.PLUS,
-        value: "+",
-        line,
-        column,
-      };
-    }
-
-    // Handle other tokens
     switch (this.currentChar) {
+      case "+":
+        this.advance();
+        return {
+          type: TokenType.PLUS,
+          value: "+",
+          line,
+          column,
+        };
+
       case "-":
         this.advance();
-        if (this.isChar(">")) {
+        if (this.isCurrentChar(">")) {
           this.advance();
           return { type: TokenType.ARROW, value: "=>", line, column };
         }
@@ -287,10 +329,10 @@ export class Lexer {
 
       case "=":
         this.advance();
-        if (this.isChar("=")) {
+        if (this.isCurrentChar("=")) {
           this.advance();
           return { type: TokenType.EQUALS, value: "==", line, column };
-        } else if (this.isChar(">")) {
+        } else if (this.isCurrentChar(">")) {
           this.advance();
           return { type: TokenType.ARROW, value: "=>", line, column };
         }
@@ -298,7 +340,7 @@ export class Lexer {
 
       case "!":
         this.advance();
-        if (this.isChar("=")) {
+        if (this.isCurrentChar("=")) {
           this.advance();
           return { type: TokenType.NOT_EQUALS, value: "!=", line, column };
         }
@@ -306,7 +348,7 @@ export class Lexer {
 
       case "<":
         this.advance();
-        if (this.isChar("=")) {
+        if (this.isCurrentChar("=")) {
           this.advance();
           return {
             type: TokenType.LESS_THAN_OR_EQUAL,
@@ -319,7 +361,7 @@ export class Lexer {
 
       case ">":
         this.advance();
-        if (this.isChar("=")) {
+        if (this.isCurrentChar("=")) {
           this.advance();
           return {
             type: TokenType.GREATER_THAN_OR_EQUAL,
@@ -332,7 +374,7 @@ export class Lexer {
 
       case "&":
         this.advance();
-        if (this.isChar("&")) {
+        if (this.isCurrentChar("&")) {
           this.advance();
           return { type: TokenType.AND, value: "&&", line, column };
         }
@@ -340,7 +382,7 @@ export class Lexer {
 
       case "|":
         this.advance();
-        if (this.isChar("|")) {
+        if (this.isCurrentChar("|")) {
           this.advance();
           return { type: TokenType.OR, value: "||", line, column };
         }
@@ -372,7 +414,7 @@ export class Lexer {
 
       case ":":
         this.advance();
-        if (this.isChar("=")) {
+        if (this.isCurrentChar("=")) {
           this.advance();
           return { type: TokenType.CONST_ASSIGN, value: ":=", line, column };
         }
@@ -390,7 +432,7 @@ export class Lexer {
         this.advance();
         return { type: TokenType.DOT, value: ".", line, column };
 
-      default:
+      default: {
         // If character is whitespace, skip it and get next token
         if (/\s/.test(this.currentChar)) {
           this.advance();
@@ -400,9 +442,21 @@ export class Lexer {
         // Better error message with character code for invisible characters
         const charCode = this.currentChar.charCodeAt(0);
         throw new Error(
-          `Unexpected character: '${this.currentChar}' (charCode: ${charCode}) at line ${line}, column ${column}`
+          `Unexpected character: '${
+            this.currentChar
+          }' (charCode: ${convertToString(charCode)}) at line ${convertToString(
+            line
+          )}, column ${convertToString(column)}`
         );
+      }
     }
+
+    // This should never happen if all cases are handled correctly
+    throw new Error(
+      `Unexpected end of input at line ${convertToString(
+        line
+      )}, column ${convertToString(column)}`
+    );
   }
 
   public tokenize(): Token[] {

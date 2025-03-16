@@ -23,7 +23,12 @@ export class Environment {
   // Assign to a variable in this scope or parent scopes
   assign(name: string, value: JacquesValue): JacquesValue {
     if (this.values.has(name)) {
-      const storedValue = this.values.get(name)!;
+      // We know the value exists because we just checked with has()
+      const storedValue = this.values.get(name);
+      // This should never happen, but TypeScript doesn't know that
+      if (!storedValue) {
+        throw new Error(`Internal error: value for ${name} disappeared`);
+      }
 
       if (storedValue.constantBinding) {
         throw new Error(`Cannot reassign constant variable: ${name}`);

@@ -1,4 +1,4 @@
-import { Jacques } from "./src";
+import { run } from "./src";
 
 // Example usage
 const code = `
@@ -54,4 +54,4 @@ const code = `
 `;
 
 // Run the code
-Jacques.run(code);
+run(code);

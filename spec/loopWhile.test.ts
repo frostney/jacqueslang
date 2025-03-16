@@ -1,10 +1,10 @@
 import { describe, it, expect } from "bun:test";
-import { Jacques } from "../src";
+import { runDebug } from "../src";
 import type { JacquesNumber } from "../src/JacquesValue";
 
 describe("While Loop", () => {
   it("should count to 5", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       // Initialize counter
       counter = 0;
   
@@ -19,7 +19,7 @@ describe("While Loop", () => {
   });
 
   it("should skip the loop if the condition is false", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       // Initialize counter
       counter = 0;
 

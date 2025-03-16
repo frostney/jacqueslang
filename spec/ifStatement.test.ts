@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { Jacques } from "../src";
+import { runDebug } from "../src";
 import type { JacquesString } from "../src/JacquesValue";
 
 describe("If Statement", () => {
   it("should be able to have an if statement", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       if true
         result := "Hello, world!";
       end;
@@ -14,7 +14,7 @@ describe("If Statement", () => {
   });
 
   it("should be able to have an if statement with an else statement", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       if true
         result := "Hello, world!";
       end else
@@ -26,7 +26,7 @@ describe("If Statement", () => {
   });
 
   it("should be able to have an if statement with an else if statement", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       bool := true;
 
       if bool

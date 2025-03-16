@@ -1,10 +1,19 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
+/* eslint-disable @typescript-eslint/no-base-to-string */
+/* eslint-disable @typescript-eslint/no-dynamic-delete */
+/* eslint-disable @typescript-eslint/no-invalid-void-type */
+
 // TODO: We need to find a way where we allow specific methods to be exported into the Interpreter while others should only be available in the host environment
 
 export abstract class JacquesValue {
   constantValue: boolean;
   __call__?(args: JacquesValue[]): JacquesValue | null; // Optional __call__ method for callable values
 
-  constructor(isConstant: boolean = false) {
+  constructor(isConstant = false) {
     this.constantValue = isConstant;
   }
 
@@ -82,7 +91,7 @@ export class JacquesNumber extends JacquesValue {
   }
 
   BinaryNot(): JacquesBoolean {
-    return new JacquesBoolean(!Boolean(this.value));
+    return new JacquesBoolean(!this.value);
   }
 
   ToString(): JacquesString {
@@ -93,7 +102,7 @@ export class JacquesNumber extends JacquesValue {
 export class JacquesString extends JacquesValue {
   value: string;
 
-  constructor(value: string = "") {
+  constructor(value = "") {
     super();
     this.value = value;
   }
@@ -110,7 +119,7 @@ export class JacquesString extends JacquesValue {
     return new JacquesBoolean(this.value !== other.value);
   }
 
-  ToString(): JacquesString {
+  ToString(): this {
     return this;
   }
 
@@ -126,7 +135,7 @@ export class JacquesString extends JacquesValue {
 export class JacquesBoolean extends JacquesValue {
   value: boolean;
 
-  constructor(value: boolean = false) {
+  constructor(value = false) {
     super();
     this.value = value;
   }
@@ -348,7 +357,7 @@ export function isReturnValue(value: unknown): value is ReturnValue {
     typeof value === "object" &&
     value !== null &&
     "__return__" in value &&
-    (value as ReturnValue).__return__ === true
+    (value as ReturnValue).__return__
   );
 }
 
@@ -357,12 +366,10 @@ export class JacquesFunction extends JacquesValue {
   func: Function;
   name: string;
   params: string[];
+  __name__?: string;
+  __params__?: string[];
 
-  constructor(
-    func: Function,
-    name: string = "anonymous",
-    params: string[] = []
-  ) {
+  constructor(func: Function, name = "anonymous", params: string[] = []) {
     super();
     this.func = func;
     this.name = name;
@@ -448,15 +455,15 @@ export class JacquesFunction extends JacquesValue {
 
 type JacquesClassModifier = "static" | "instance" | "private" | "protected";
 
-type JacquesClassProperty = {
+interface JacquesClassProperty {
   value: JacquesValue;
   modifier: JacquesClassModifier;
-};
+}
 
-type JacquesClassMethod = {
+interface JacquesClassMethod {
   value: JacquesFunction;
   modifier: JacquesClassModifier;
-};
+}
 
 // Class implementation for Jacques
 export class JacquesClass extends JacquesValue {
@@ -636,46 +643,37 @@ export class JacquesClass extends JacquesValue {
   }
 }
 
-// Helper function to add metadata to methods
-function addMethodMetadata(
-  method: Function,
-  name: string,
-  params: string[]
-): Function {
-  const boundMethod = method as any;
-  boundMethod.__name__ = name;
-  boundMethod.__params__ = params;
-  return boundMethod;
-}
-
 export class JacquesArray extends JacquesValue {
   constructor(public elements: JacquesValue[] = []) {
     super();
 
     // Add metadata to methods
-    (this.Add as any).__name__ = "Add";
-    (this.Add as any).__params__ = ["element"];
+    (this.Add as unknown as JacquesFunction).__name__ = "Add";
+    (this.Add as unknown as JacquesFunction).__params__ = ["element"];
 
-    (this.Remove as any).__name__ = "Remove";
-    (this.Remove as any).__params__ = ["index"];
+    (this.Remove as unknown as JacquesFunction).__name__ = "Remove";
+    (this.Remove as unknown as JacquesFunction).__params__ = ["index"];
 
-    (this.Get as any).__name__ = "Get";
-    (this.Get as any).__params__ = ["index"];
+    (this.Get as unknown as JacquesFunction).__name__ = "Get";
+    (this.Get as unknown as JacquesFunction).__params__ = ["index"];
 
-    (this.ForEach as any).__name__ = "ForEach";
-    (this.ForEach as any).__params__ = ["callback"];
+    (this.ForEach as unknown as JacquesFunction).__name__ = "ForEach";
+    (this.ForEach as unknown as JacquesFunction).__params__ = ["callback"];
 
-    (this.Map as any).__name__ = "Map";
-    (this.Map as any).__params__ = ["callback"];
+    (this.Map as unknown as JacquesFunction).__name__ = "Map";
+    (this.Map as unknown as JacquesFunction).__params__ = ["callback"];
 
-    (this.Filter as any).__name__ = "Filter";
-    (this.Filter as any).__params__ = ["predicate"];
+    (this.Filter as unknown as JacquesFunction).__name__ = "Filter";
+    (this.Filter as unknown as JacquesFunction).__params__ = ["predicate"];
 
-    (this.Contains as any).__name__ = "Contains";
-    (this.Contains as any).__params__ = ["value"];
+    (this.Contains as unknown as JacquesFunction).__name__ = "Contains";
+    (this.Contains as unknown as JacquesFunction).__params__ = ["value"];
 
-    (this.Reduce as any).__name__ = "Reduce";
-    (this.Reduce as any).__params__ = ["initialValue", "callback"];
+    (this.Reduce as unknown as JacquesFunction).__name__ = "Reduce";
+    (this.Reduce as unknown as JacquesFunction).__params__ = [
+      "initialValue",
+      "callback",
+    ];
   }
 
   // Get a property of the array (e.g., length)
@@ -775,10 +773,6 @@ export class JacquesArray extends JacquesValue {
   }
 
   Contains(value: JacquesValue): JacquesBoolean {
-    if (!value) {
-      return new JacquesBoolean(false);
-    }
-
     for (const element of this.elements) {
       if (element.Equals(value).value) {
         return new JacquesBoolean(true);
@@ -791,9 +785,12 @@ export class JacquesArray extends JacquesValue {
   Reduce(initialValue: JacquesValue, callback: JacquesFunction): JacquesValue {
     let accumulator = initialValue;
 
-    for (let i = 0; i < this.elements.length; i++) {
-      const element = this.elements[i];
-      accumulator = callback.__call__([accumulator, element]) as JacquesValue;
+    for (const element of this.elements) {
+      const result = callback.__call__([accumulator, element]);
+      if (result === null) {
+        throw new Error("Reduce callback returned null");
+      }
+      accumulator = result;
     }
 
     return accumulator;

@@ -1,18 +1,17 @@
-import { Jacques } from "../src";
+import { runDebug } from "../src";
 import { describe, it, expect } from "bun:test";
 import {
   JacquesFunction,
   JacquesNumber,
   JacquesString,
   JacquesValue,
-  JacquesBoolean,
   JacquesRecord,
   JacquesClass,
 } from "../src/JacquesValue";
 
 describe("Classes", () => {
   it("should be able to create a class", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person
         name := "John";
         age := 30;
@@ -41,7 +40,7 @@ describe("Classes", () => {
   });
 
   it("should be able to define methods", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         name := "John";
         age := 30;
@@ -103,7 +102,7 @@ describe("Classes", () => {
   });
 
   it("should be able to define properties", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         name := "Jane";
         age := 25;
@@ -128,7 +127,7 @@ describe("Classes", () => {
   });
 
   it("should be able to define static properties", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         static name := "John";
         static age := 30;
@@ -155,7 +154,7 @@ describe("Classes", () => {
   });
 
   it("should be able to define static methods", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         static SayHello()
           Println("Hello, my name is " + Person.name);
@@ -171,7 +170,7 @@ describe("Classes", () => {
   });
 
   it("should be able to define private properties", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         private name = "John";
         private age = 30;
@@ -187,7 +186,7 @@ describe("Classes", () => {
   });
 
   it("should be able to define private methods", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         private SayHello()
           Println("Hello, my name is " + Person.name);
@@ -202,7 +201,7 @@ describe("Classes", () => {
   });
 
   it("should be able to define protected properties", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         protected name = "John";
         protected age = 30;
@@ -224,7 +223,7 @@ describe("Classes", () => {
   });
 
   it("should be able to define protected methods", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         protected SayHello()
           Println("Hello, my name is " + Person.name);
@@ -243,7 +242,7 @@ describe("Classes", () => {
   });
 
   it("should be able to define a constructor", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         constructor(name, age) 
           self.name = name;
@@ -261,7 +260,7 @@ describe("Classes", () => {
   });
 
   it("should be able to define a class that extends another class", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         constructor(name, age)
           self.name = name;
@@ -288,7 +287,7 @@ describe("Classes", () => {
   });
 
   it("allows to use `@` instead of `self`", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         name = "John";
 
@@ -305,7 +304,7 @@ describe("Classes", () => {
   });
 
   it("allows to use `@` instead of `self` in a constructor", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         constructor(name) 
           @name = name;
@@ -320,7 +319,7 @@ describe("Classes", () => {
   });
 
   it("allows to use `@` instead of `self` in a method", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         name = "John";
 
@@ -341,7 +340,7 @@ describe("Classes", () => {
   });
 
   it("allows to use `@` in constructor parameters", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person 
         constructor(@name) 
       end;
@@ -354,7 +353,7 @@ describe("Classes", () => {
   });
 
   it("allows to create property with getter and setter", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       class Person
         name = "John";
 

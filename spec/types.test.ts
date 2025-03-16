@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { Jacques } from "../src";
+import { runDebug } from "../src";
 import {
   JacquesNumber,
   JacquesString,
@@ -10,7 +10,7 @@ import {
 
 describe("Types", () => {
   it("should be able to define types with implicit default values", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       num: Number;
       str: String;
       map: Record;
@@ -36,7 +36,7 @@ describe("Types", () => {
   });
 
   it("should be able to define types with explicit default values", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       num: Number := 5;
       str: String := "Hello";
       map: Record := { "key": "value" };
@@ -62,7 +62,7 @@ describe("Types", () => {
   });
 
   it("should be able to define types implicitly", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       num := 5;
       str := "Hello";
       map := { "key": "value" };
@@ -84,7 +84,7 @@ describe("Types", () => {
   });
 
   it("should be able to reassign value of the same type", () => {
-    const { env } = Jacques.runDebug(`
+    const { env } = runDebug(`
       num = 5;
       num = 10;
     `);
@@ -96,7 +96,7 @@ describe("Types", () => {
     // We know the error will be thrown, so we use try/catch
     let errorMessage = "";
     try {
-      const { env } = Jacques.runDebug(`
+      runDebug(`
         num = 5;
         num = "Hello";
       `);
