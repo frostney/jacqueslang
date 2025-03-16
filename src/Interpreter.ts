@@ -818,7 +818,6 @@ export class Interpreter {
     const staticMethods: Record<string, JacquesFunction> = {};
     const privateMethods: Record<string, JacquesFunction> = {};
     const protectedMethods: Record<string, JacquesFunction> = {};
-    let constructorFunc: JacquesFunction | null = null;
 
     // Create the class
     const jacquesClass = new JacquesClass(
@@ -868,11 +867,11 @@ export class Interpreter {
 
           // Set 'self' to the first argument (the instance)
           if (args.length > 0) {
-            methodEnv.define("self", args[0]);
+            methodEnv.define("self", args[0], false);
           }
 
           // Set the current class for 'super' keyword
-          methodEnv.define("currentClass", jacquesClass);
+          methodEnv.define("currentClass", jacquesClass, false);
 
           // Bind parameters to arguments (skip the first arg which is 'self')
           for (let i = 0; i < prop.function.params.length; i++) {
@@ -890,7 +889,7 @@ export class Interpreter {
             // Mark as constant if this is a shorthand property
             argValue.constantValue = param.isShorthandProperty || false;
 
-            methodEnv.define(param.name, argValue);
+            methodEnv.define(param.name, argValue, false);
           }
 
           // Execute method body
@@ -918,7 +917,6 @@ export class Interpreter {
 
         // Store the method in the appropriate collection
         if (prop.isConstructor) {
-          constructorFunc = jacquesMethod;
           // Create a proper JacquesClassMethod object
           jacquesClass.constructorFunc = {
             value: jacquesMethod,
@@ -943,7 +941,7 @@ export class Interpreter {
 
     // Store the class in the environment
     jacquesClass.constantValue = true;
-    env.define(className, jacquesClass);
+    env.define(className, jacquesClass, false);
 
     return jacquesClass;
   }
@@ -1012,7 +1010,6 @@ export class Interpreter {
       const tokens = new Lexer(sourceCode).tokenize();
       const ast = new Parser(tokens).parse();
       const interpreter = new Interpreter(ast);
-      const result = interpreter.execute();
 
       // Get exported values from interpreter's environment
       sourceModule = interpreter.getExports();
@@ -1037,7 +1034,7 @@ export class Interpreter {
         (importedValue as any).__type__ = importedValue.constructor.name;
       }
 
-      env.define(name, importedValue);
+      env.define(name, importedValue as JacquesValue, false);
     }
 
     return null;
@@ -1165,7 +1162,7 @@ export class Interpreter {
       newValue.constantValue = currentValue.constantValue;
 
       // Update the variable
-      env.define(variableName, newValue);
+      env.define(variableName, newValue, false);
 
       // For postfix increment, return the original value
       return currentValue;

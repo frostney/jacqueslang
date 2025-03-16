@@ -26,7 +26,6 @@ import type {
   WhileStatementNode,
   UpdateExpressionNode,
   TypeDeclarationNode,
-  TypeInferenceNode,
   TypeNode,
 } from "./ASTNode";
 
@@ -58,14 +57,6 @@ export class Parser {
     throw new Error(
       `Unexpected token: ${this.currentToken.type}, expected: ${tokenType} at line ${this.currentToken.line}, column ${this.currentToken.column}`
     );
-  }
-
-  private peek(n: number = 1): Token {
-    const peekPos = this.position + n;
-    if (peekPos >= this.tokens.length) {
-      return this.tokens[this.tokens.length - 1]; // EOF token
-    }
-    return this.tokens[peekPos];
   }
 
   private match(tokenType: TokenType): boolean {
@@ -1789,17 +1780,5 @@ export class Parser {
       params,
       body,
     } as LambdaExpressionNode;
-  }
-
-  private block(): ASTNode[] {
-    this.eat(TokenType.LBRACE);
-    const statements: ASTNode[] = [];
-
-    while (!this.match(TokenType.RBRACE)) {
-      statements.push(this.statement());
-    }
-
-    this.eat(TokenType.RBRACE);
-    return statements;
   }
 }
