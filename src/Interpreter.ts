@@ -417,15 +417,23 @@ export class Interpreter {
         // Skip type checking only if:
         // 1. Types are the same, or
         // 2. We're dealing with functions, or
-        // 3. We're assigning a string result to a variable (for string concatenation)
+        // 3. We're assigning a string result to a variable in a function context
         const isSameType = newType === currentType;
         const isFunctionType =
           valueResult instanceof JacquesFunction ||
           currentValue instanceof JacquesFunction;
         const isStringResult = valueResult instanceof JacquesString;
+        const isInFunctionContext = this.callStack.length > 0;
 
-        // Allow string results to be assigned to any variable (for string concatenation)
-        if (!isSameType && !isFunctionType && !isStringResult) {
+        // Only allow:
+        // - Same types, or
+        // - Functions, or
+        // - String results in function contexts (for string concatenation)
+        if (
+          !isSameType &&
+          !isFunctionType &&
+          !(isStringResult && isInFunctionContext)
+        ) {
           throw new Error(
             `Type error: Cannot assign value of type ${newType} to variable of type ${currentType}`
           );
