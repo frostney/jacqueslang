@@ -27,7 +27,9 @@ describe("If Statement", () => {
 
   it("should be able to have an if statement with an else if statement", () => {
     const { env } = Jacques.runDebug(`
-      if (true) {
+      bool := true;
+
+      if (bool) {
         result := "Hello, world!";
       } else if (false) {
         result := "Goodbye, world!";
