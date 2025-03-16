@@ -170,7 +170,8 @@ describe("Functions", () => {
       function add(a: Number, b: Number)
         Result := a + b;
       end;
-
+      
+      // Test actual introspection by accessing the function's name property
       result := add.Name;
     `);
 
@@ -190,13 +191,12 @@ describe("Functions", () => {
 
   describe("closures", () => {
     it("should be able to make a counter", () => {
-      // Use a simpler approach that doesn't need closures
       const { env } = Jacques.runDebug(`
         function makeCounter()
           counter = 0;
           
           Result := function()
-            counter := counter + 1;
+            counter = counter + 1;
             Result := counter;
           end;
         end;
@@ -251,7 +251,7 @@ describe("Functions", () => {
       function factorial(n: Number)
         if n <= 1
           Result := 1;
-        else
+        end else
           Result := n * factorial(n - 1);
         end;
       end;
@@ -280,7 +280,7 @@ describe("Functions", () => {
       }
     }
 
-    // Make sure the error message includes the type error
-    expect(errorMessage).toContain("Type error");
+    // Make sure the error message includes the correct error
+    expect(errorMessage).toContain("Parameters cannot be defined as constants");
   });
 });

@@ -1,8 +1,12 @@
 // TODO: We need to find a way where we allow specific methods to be exported into the Interpreter while others should only be available in the host environment
 
 export abstract class JacquesValue {
-  __constant__: boolean = false;
+  constantValue: boolean;
   __call__?(args: JacquesValue[]): JacquesValue | null; // Optional __call__ method for callable values
+
+  constructor(isConstant: boolean = false) {
+    this.constantValue = isConstant;
+  }
 
   get __type__(): string {
     return this.constructor.name;

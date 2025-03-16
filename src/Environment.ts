@@ -1,58 +1,75 @@
 import { JacquesValue } from "./JacquesValue";
 
+export interface StoredValue {
+  value: JacquesValue;
+  constantBinding: boolean;
+}
+
 export type EnvironmentRecord = Record<string, JacquesValue>;
 
 // Ensure the class is exported
 export class Environment {
-  private values: Map<string, JacquesValue>;
-  private parent: Environment | null;
+  private values: Map<string, StoredValue>;
 
-  constructor(parent: Environment | null = null) {
+  constructor(public enclosing: Environment | null = null) {
     this.values = new Map();
-    this.parent = parent;
   }
 
-  // Define a new variable in the current scope
-  define(name: string, value: JacquesValue): void {
-    this.values.set(name, value);
+  // Define a new variable in the current scope with explicit constant flag
+  define(name: string, value: JacquesValue, constantBinding: boolean): void {
+    this.values.set(name, { value, constantBinding });
   }
 
   // Assign to a variable in this scope or parent scopes
   assign(name: string, value: JacquesValue): JacquesValue {
-    // Check if the variable exists in the current scope
     if (this.values.has(name)) {
-      // Check if the value is constant
-      const existingValue = this.values.get(name);
-      if (existingValue instanceof JacquesValue && existingValue.__constant__) {
+      const storedValue = this.values.get(name)!;
+
+      if (storedValue.constantBinding) {
         throw new Error(`Cannot reassign constant variable: ${name}`);
       }
-      this.values.set(name, value);
+
+      this.values.set(name, { ...storedValue, value });
       return value;
     }
 
-    // If not found in current scope, try to assign in parent scope
-    if (this.parent) {
-      return this.parent.assign(name, value);
+    if (this.enclosing !== null) {
+      return this.enclosing.assign(name, value);
     }
 
-    // If the variable doesn't exist anywhere in the scope chain, define it here
-    this.define(name, value);
-    return value;
+    throw new Error(`Undefined variable '${name}'`);
   }
 
   // Get a variable from this scope or parent scopes
   get(name: string): JacquesValue {
-    // Check if the variable exists in the current scope
-    if (this.values.has(name)) {
-      return this.values.get(name)!;
+    const value = this.values.get(name);
+
+    if (value !== undefined) {
+      return value.value;
     }
 
-    // If not found in current scope, look in parent scope
-    if (this.parent) {
-      return this.parent.get(name);
+    if (this.enclosing !== null) {
+      return this.enclosing.get(name);
     }
 
-    throw new Error(`Undefined variable: ${name}`);
+    throw new Error(`Undefined variable '${name}'`);
+  }
+
+  // Get a variable with its constant status
+  getWithConstantInfo(
+    name: string
+  ): { value: JacquesValue; constantBinding: boolean } | null {
+    const value = this.values.get(name);
+
+    if (value !== undefined) {
+      return { value: value.value, constantBinding: value.constantBinding };
+    }
+
+    if (this.enclosing !== null) {
+      return this.enclosing.getWithConstantInfo(name);
+    }
+
+    return null; // Return null instead of throwing an error
   }
 
   // Check if a variable exists in this scope or parent scopes
@@ -61,8 +78,8 @@ export class Environment {
       return true;
     }
 
-    if (this.parent) {
-      return this.parent.has(name);
+    if (this.enclosing) {
+      return this.enclosing.has(name);
     }
 
     return false;
@@ -73,13 +90,13 @@ export class Environment {
     const result: EnvironmentRecord = {};
 
     // Add variables from parent scope first (so they can be overridden)
-    if (this.parent) {
-      Object.assign(result, this.parent.getAll());
+    if (this.enclosing) {
+      Object.assign(result, this.enclosing.getAll());
     }
 
     // Add variables from current scope
-    this.values.forEach((value, key) => {
-      result[key] = value;
+    this.values.forEach((storedValue, key) => {
+      result[key] = storedValue.value;
     });
 
     return result;
