@@ -354,11 +354,9 @@ export function isReturnValue(value: unknown): value is ReturnValue {
 
 // Function wrapper class to allow functions to be passed as values
 export class JacquesFunction extends JacquesValue {
-  private func: Function;
+  func: Function;
   name: string;
-  params: string[] = [];
-  // Add metadata that can be used by the interpreter
-  __params__?: string[];
+  params: string[];
 
   constructor(
     func: Function,
@@ -369,7 +367,6 @@ export class JacquesFunction extends JacquesValue {
     this.func = func;
     this.name = name;
     this.params = params;
-    this.__params__ = params;
   }
 
   // Call the function with the provided arguments

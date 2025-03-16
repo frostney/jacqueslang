@@ -312,35 +312,9 @@ export class Interpreter {
         }
         throw new Error(`Incompatible types for operator %`);
       case "==":
-        if (left instanceof JacquesNumber && right instanceof JacquesNumber) {
-          return left.Equals(right);
-        } else if (
-          left instanceof JacquesString &&
-          right instanceof JacquesString
-        ) {
-          return left.Equals(right);
-        } else if (
-          left instanceof JacquesBoolean &&
-          right instanceof JacquesBoolean
-        ) {
-          return left.Equals(right);
-        }
-        return new JacquesBoolean(false);
+        return left.Equals(right);
       case "!=":
-        if (left instanceof JacquesNumber && right instanceof JacquesNumber) {
-          return left.NotEquals(right);
-        } else if (
-          left instanceof JacquesString &&
-          right instanceof JacquesString
-        ) {
-          return left.NotEquals(right);
-        } else if (
-          left instanceof JacquesBoolean &&
-          right instanceof JacquesBoolean
-        ) {
-          return left.NotEquals(right);
-        }
-        return new JacquesBoolean(true);
+        return left.NotEquals(right);
       case "<":
         if (left instanceof JacquesNumber && right instanceof JacquesNumber) {
           return left.LessThan(right);
@@ -440,14 +414,18 @@ export class Interpreter {
         const newType = valueResult.__type__;
         const currentType = currentValue.__type__;
 
-        // Skip type checking only if types are the same or if we're dealing with functions
-        // Functions have their own type checking rules
+        // Skip type checking only if:
+        // 1. Types are the same, or
+        // 2. We're dealing with functions, or
+        // 3. We're assigning a string result to a variable (for string concatenation)
         const isSameType = newType === currentType;
         const isFunctionType =
           valueResult instanceof JacquesFunction ||
           currentValue instanceof JacquesFunction;
+        const isStringResult = valueResult instanceof JacquesString;
 
-        if (!isSameType && !isFunctionType) {
+        // Allow string results to be assigned to any variable (for string concatenation)
+        if (!isSameType && !isFunctionType && !isStringResult) {
           throw new Error(
             `Type error: Cannot assign value of type ${newType} to variable of type ${currentType}`
           );
@@ -458,17 +436,18 @@ export class Interpreter {
     } else {
       // Define a new variable
       if (valueResult instanceof JacquesValue) {
-        // Set the constantValue property based on the isConstant flag
-        valueResult.constantValue = node.isConstant;
-        env.define(name, valueResult, node.isConstant);
+        // For new variables, we set the constant flag based on the isConstant property
+        const isConstant = node.isConstant;
+
+        // Set the constantValue property on the JacquesValue
+        valueResult.constantValue = isConstant;
+
+        // Define the variable in the environment
+        env.define(name, valueResult, isConstant);
         return valueResult;
-      } else if (typeof valueResult === "function") {
-        // Handle JavaScript functions
-        env.define(name, valueResult, node.isConstant);
-        return null;
-      } else {
-        throw new Error(`Cannot assign value of type ${typeof valueResult}`);
       }
+
+      throw new Error(`Cannot assign non-value to variable: ${name}`);
     }
   }
 
@@ -649,28 +628,31 @@ export class Interpreter {
     node: FunctionDeclarationNode,
     env: Environment
   ): JacquesFunction {
-    const func = (args: JacquesValue[]): JacquesValue | null => {
+    // Get the function name, or use "anonymous" for function expressions
+    const functionName = node.name ? node.name.name : "anonymous";
+
+    // Create the function implementation that will execute when called
+    const func = function (this: any, ...rawArgs: any[]): JacquesValue | null {
+      // Convert args to JacquesValue array if needed
+      const args = Array.isArray(rawArgs[0]) ? rawArgs[0] : rawArgs;
+
       // Create a new environment for the function execution
       const functionEnv = new Environment(env);
+
+      // Add built-in functions to the function's environment
+      // Use the proper way to iterate through the builtins Map
+      for (const [key, value] of this.builtins.values.entries()) {
+        functionEnv.define(key, value.value, value.constantBinding);
+      }
 
       // Track function call in the call stack
       this.callStack.push(functionEnv);
 
       try {
-        // Define built-in functions in the function environment
-        this.initializeBuiltins(functionEnv);
-
         // Bind parameters to arguments
         for (let i = 0; i < node.params.length; i++) {
           const param = node.params[i];
           const paramName = param.name;
-
-          // Check if the parameter is constant
-          if (param.isConstant) {
-            throw new Error(
-              `Function parameters cannot be declared as constant: ${paramName}`
-            );
-          }
 
           // Get the argument or use the default value
           let arg: JacquesValue;
@@ -686,12 +668,28 @@ export class Interpreter {
           functionEnv.define(paramName, arg, false);
         }
 
+        // Define the function itself in its own environment for recursion
+        // Only do this for named functions, not anonymous function expressions
+        if (functionName !== "anonymous") {
+          const jacquesFunction = new JacquesFunction(
+            func,
+            functionName,
+            node.params.map((p) => p.name)
+          );
+          functionEnv.define(functionName, jacquesFunction, false);
+        }
+
         // Define a Result variable in the function's environment
         functionEnv.define("Result", new JacquesNumber(0), false);
 
         // Execute the function body
         for (const statement of node.body) {
-          this.evaluate(statement, functionEnv);
+          const result = this.evaluate(statement, functionEnv);
+
+          // Handle return statements
+          if (isReturnValue(result)) {
+            return result.__value__;
+          }
         }
 
         // Return the Result variable
@@ -700,13 +698,18 @@ export class Interpreter {
         // Remove this function call from the call stack
         this.callStack.pop();
       }
-    };
+    }.bind(this); // Bind the interpreter instance to this
 
-    // Create a JacquesFunction object
-    const jacquesFunction = new JacquesFunction(node.name, func, node.params);
+    // Extract parameter names
+    const paramNames = node.params.map((p) => p.name);
 
-    // Define the function in the environment
-    env.define(node.name, jacquesFunction, false);
+    // Create a JacquesFunction object with the correct name
+    const jacquesFunction = new JacquesFunction(func, functionName, paramNames);
+
+    // Define the function in the environment if it has a name
+    if (node.name) {
+      env.define(node.name.name, jacquesFunction, false);
+    }
 
     return jacquesFunction;
   }
@@ -714,55 +717,66 @@ export class Interpreter {
   private evaluateLambdaExpression(
     node: LambdaExpressionNode,
     env: Environment
-  ): Function | JacquesFunction {
-    const lambdaFunc = (...args: unknown[]): JacquesValue | null => {
+  ): JacquesFunction {
+    // Create the function that will be executed when the lambda is called
+    const lambdaFunc = function (
+      this: any,
+      ...rawArgs: any[]
+    ): JacquesValue | null {
+      // Convert args to JacquesValue array if needed
+      const args = Array.isArray(rawArgs[0]) ? rawArgs[0] : rawArgs;
+
       // Create a new environment with the current environment as parent
       const lambdaEnv = new Environment(env);
 
-      // Add builtins
-      for (const key of Object.keys(this.builtins.getAll())) {
-        lambdaEnv.define(key, this.builtins.get(key), false);
+      // Add built-in functions to the lambda's environment
+      // Use the proper way to iterate through the builtins Map
+      for (const [key, value] of this.builtins.values.entries()) {
+        lambdaEnv.define(key, value.value, value.constantBinding);
       }
 
-      // Bind parameters to arguments
-      for (let i = 0; i < node.params.length; i++) {
-        const param = node.params[i];
-        let argValue: JacquesValue;
+      // Track lambda call in the call stack
+      this.callStack.push(lambdaEnv);
 
-        if (i < args.length && args[i] instanceof JacquesValue) {
-          // Use provided argument
-          argValue = args[i] as JacquesValue;
-        } else if (param.defaultValue) {
-          // Use default value if available
-          argValue = this.evaluate(
-            param.defaultValue,
-            lambdaEnv
-          ) as JacquesValue;
-        } else {
-          // Otherwise use a default value of 0
-          argValue = new JacquesNumber(0);
+      try {
+        // Bind parameters to arguments
+        for (let i = 0; i < node.params.length; i++) {
+          const param = node.params[i];
+          let argValue: JacquesValue;
+
+          if (i < args.length && args[i] !== undefined) {
+            // Use provided argument
+            argValue = args[i];
+          } else if (param.defaultValue) {
+            // Use default value if available
+            argValue = this.evaluate(param.defaultValue, env) as JacquesValue;
+          } else {
+            // Otherwise use a default value of 0
+            argValue = new JacquesNumber(0);
+          }
+
+          // Parameters can never be constants
+          lambdaEnv.define(param.name, argValue, false);
         }
 
-        // Parameters can never be constants
-        lambdaEnv.define(param.name, argValue, false);
+        // For lambda expressions, directly evaluate the body and return the result
+        const bodyResult = this.evaluate(node.body, lambdaEnv);
+
+        if (bodyResult instanceof JacquesValue) {
+          return bodyResult;
+        }
+
+        return new JacquesNumber(0); // Default return value
+      } finally {
+        // Remove this lambda call from the call stack
+        this.callStack.pop();
       }
-
-      // Define Result variable for expression body
-      const result = new JacquesNumber(0);
-      result.constantValue = false;
-      lambdaEnv.define("Result", result, false);
-
-      // For lambda expressions, we just evaluate the body directly
-      const value = this.evaluate(node.body, lambdaEnv);
-
-      // For expressions, the result is the value of the expression
-      return value instanceof JacquesValue ? value : null;
-    };
+    }.bind(this); // Bind the interpreter instance to this
 
     // Extract parameter names
     const paramNames = node.params.map((param) => param.name);
 
-    // Create a wrapper function
+    // Create a JacquesFunction wrapper
     return new JacquesFunction(lambdaFunc, "lambda", paramNames);
   }
 
