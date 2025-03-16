@@ -100,25 +100,30 @@ export class Parser {
       return this.functionDeclaration();
     } else if (this.match(TokenType.CLASS)) {
       return this.classDeclaration();
-    } else if (this.match(TokenType.WHILE)) {
-      return this.whileStatement();
     } else if (this.match(TokenType.RETURN)) {
       return this.returnStatement();
     } else if (this.match(TokenType.IMPORT)) {
       return this.importDeclaration();
     } else if (this.match(TokenType.EXPORT)) {
       return this.exportDeclaration();
+    } else if (this.match(TokenType.WHILE)) {
+      return this.whileStatement();
+    } else if (this.match(TokenType.SEMICOLON)) {
+      // Skip empty statements (lone semicolons)
+      this.eat(TokenType.SEMICOLON);
+      return this.statement();
     } else if (this.match(TokenType.IDENTIFIER)) {
-      // Get the identifier
+      // Try to parse identifier declarations with type annotations
       const identifier = this.identifier();
 
-      // Type declaration with explicit type
       if (this.match(TokenType.COLON)) {
         return this.typeDeclaration(identifier);
       }
-
       // Variable assignment (with type inference)
-      if (this.match(TokenType.ASSIGN) || this.match(TokenType.CONST_ASSIGN)) {
+      else if (
+        this.match(TokenType.ASSIGN) ||
+        this.match(TokenType.CONST_ASSIGN)
+      ) {
         const isConstant = this.currentToken.type === TokenType.CONST_ASSIGN;
         this.eat(this.currentToken.type);
         const right = this.expression();
@@ -130,21 +135,32 @@ export class Parser {
           left: identifier,
           right,
         } as AssignmentNode;
+      } else {
+        // Not a type declaration, rewind and parse as a regular expression
+        this.position--;
+        this.currentToken = this.tokens[this.position];
+        return this.expressionStatement();
       }
-
-      // Just the identifier expression
-      const expr = {
-        type: "Identifier",
-        name: identifier.name,
-      } as IdentifierNode;
-
-      this.optionalSemicolon();
-      return expr;
     } else {
-      const expr = this.expression();
-      this.optionalSemicolon();
-      return expr;
+      // Default to expression statement for all other cases
+      return this.expressionStatement();
     }
+  }
+
+  // ExpressionStatement -> Expression ';'?
+  private expressionStatement(): ASTNode {
+    // Check if we're at EOF
+    if (this.currentToken.type === TokenType.EOF) {
+      // Return an empty statement node
+      return { type: "EmptyStatement" } as ASTNode;
+    }
+
+    const expr = this.expression();
+
+    // Optionally eat semicolons between statements
+    this.optionalSemicolon();
+
+    return expr;
   }
 
   private typeDeclaration(
@@ -158,7 +174,6 @@ export class Parser {
       const isConstant = this.currentToken.type === TokenType.CONST_ASSIGN;
       this.eat(isConstant ? TokenType.CONST_ASSIGN : TokenType.ASSIGN);
       const right = this.expression();
-      this.optionalSemicolon();
 
       return {
         type: "Assignment",
@@ -641,17 +656,87 @@ export class Parser {
     const args: ASTNode[] = [];
 
     if (!this.match(TokenType.RPAREN)) {
-      // Parse first argument
-      args.push(this.expression());
+      // Check for lambda expression as the first argument
+      if (this.isLambdaExpressionStart()) {
+        args.push(this.lambdaExpression());
+      } else {
+        // Parse first argument normally
+        args.push(this.expression());
+      }
 
       // Parse additional arguments if any
       while (this.match(TokenType.COMMA)) {
         this.eat(TokenType.COMMA);
-        args.push(this.expression());
+
+        // Check for lambda expression
+        if (this.isLambdaExpressionStart()) {
+          args.push(this.lambdaExpression());
+        } else {
+          args.push(this.expression());
+        }
       }
     }
 
     return args;
+  }
+
+  // Helper method to check if the upcoming tokens form a lambda expression
+  private isLambdaExpressionStart(): boolean {
+    // If we see '(' followed by an identifier, we might have a lambda start
+    if (this.match(TokenType.LPAREN)) {
+      // Save current position
+      const savedPosition = this.position;
+
+      // Try to peek ahead
+      try {
+        this.eat(TokenType.LPAREN);
+
+        // Empty parameter list or identifier
+        if (this.match(TokenType.RPAREN) || this.match(TokenType.IDENTIFIER)) {
+          // Restore position and return true
+          this.position = savedPosition;
+          this.currentToken = this.tokens[this.position];
+          return true;
+        }
+      } catch (e) {
+        // Restore position on error
+        this.position = savedPosition;
+        this.currentToken = this.tokens[this.position];
+      }
+
+      // Restore position and return false
+      this.position = savedPosition;
+      this.currentToken = this.tokens[this.position];
+    }
+
+    // If we see an identifier followed by => it's a lambda
+    if (this.match(TokenType.IDENTIFIER)) {
+      // Save current position
+      const savedPosition = this.position;
+
+      // Try to peek ahead
+      try {
+        this.eat(TokenType.IDENTIFIER);
+
+        // If next token is ARROW, it's a lambda
+        if (this.match(TokenType.ARROW)) {
+          // Restore position and return true
+          this.position = savedPosition;
+          this.currentToken = this.tokens[this.position];
+          return true;
+        }
+      } catch (e) {
+        // Restore position on error
+        this.position = savedPosition;
+        this.currentToken = this.tokens[this.position];
+      }
+
+      // Restore position and return false
+      this.position = savedPosition;
+      this.currentToken = this.tokens[this.position];
+    }
+
+    return false;
   }
 
   // MemberExpression -> Object '.' Property | Object '[' Expression ']'
@@ -705,107 +790,24 @@ export class Parser {
       case TokenType.BOOLEAN:
         return this.booleanLiteral();
       case TokenType.IDENTIFIER:
-        const identifier = this.identifier();
-
-        // Check for increment operator
+        const id = this.identifier();
+        // Check if the next token is INCREMENT (++)
         if (this.match(TokenType.INCREMENT)) {
+          this.eat(TokenType.INCREMENT);
           return {
             type: "UpdateExpression",
             operator: "++",
-            argument: identifier,
-            prefix: false,
+            argument: id,
+            prefix: false, // This is a postfix increment (x++)
           } as UpdateExpressionNode;
         }
-
-        return identifier;
-      case TokenType.AT:
-        // Handle @ prefix for instance property access
-        this.eat(TokenType.AT);
-        const name = this.identifier().name;
-        return {
-          type: "Identifier",
-          name: "@" + name, // Prefix with @ to indicate instance property
-        } as IdentifierNode;
-      case TokenType.SELF:
-        this.eat(TokenType.SELF);
-        return {
-          type: "Identifier",
-          name: "self",
-        } as IdentifierNode;
-      case TokenType.RESULT:
-        this.eat(TokenType.RESULT);
-        return {
-          type: "Identifier",
-          name: "Result",
-        } as IdentifierNode;
-      case TokenType.LPAREN:
-        // Check for lambda expressions
-        const startPosition = this.position;
-
-        try {
-          this.eat(TokenType.LPAREN);
-
-          // Empty parameter list
-          if (this.match(TokenType.RPAREN)) {
-            this.eat(TokenType.RPAREN);
-
-            // Check for arrow to confirm it's a lambda
-            if (this.match(TokenType.ARROW)) {
-              this.eat(TokenType.ARROW);
-              const body = this.expression();
-
-              return {
-                type: "LambdaExpression",
-                params: [],
-                body,
-              } as LambdaExpressionNode;
-            }
-
-            // Not a lambda, rewind and try as parenthesized expression
-            this.position = startPosition;
-            this.currentToken = this.tokens[this.position];
-            return this.parenthesizedExpression();
-          }
-
-          // Non-empty parameter list
-          if (this.match(TokenType.IDENTIFIER)) {
-            const params: IdentifierNode[] = [];
-
-            // Parse first parameter
-            params.push(this.identifier());
-
-            // Check for more parameters
-            while (this.match(TokenType.COMMA)) {
-              this.eat(TokenType.COMMA);
-              params.push(this.identifier());
-            }
-
-            // End of parameter list
-            this.eat(TokenType.RPAREN);
-
-            // Check for arrow to confirm it's a lambda
-            if (this.match(TokenType.ARROW)) {
-              this.eat(TokenType.ARROW);
-              const body = this.expression();
-
-              return {
-                type: "LambdaExpression",
-                params,
-                body,
-              } as LambdaExpressionNode;
-            }
-          }
-
-          // Not a lambda, rewind and try as parenthesized expression
-          this.position = startPosition;
-          this.currentToken = this.tokens[this.position];
-          return this.parenthesizedExpression();
-        } catch (e) {
-          // Error parsing as lambda, rewind and try as parenthesized expression
-          this.position = startPosition;
-          this.currentToken = this.tokens[this.position];
-          return this.parenthesizedExpression();
+        // If the next token is a colon, this is a type declaration
+        if (this.match(TokenType.COLON)) {
+          return this.typeDeclaration(id);
         }
+        return id;
+      case TokenType.LPAREN:
+        return this.parenthesizedExpression();
       case TokenType.LBRACKET:
         return this.arrayLiteral();
       case TokenType.LBRACE:
@@ -1758,8 +1760,29 @@ export class Parser {
     // Arrow token
     this.eat(TokenType.ARROW);
 
-    // Lambda body
-    const body = this.expression();
+    // Lambda body - can be a single expression or a block
+    let body: ASTNode;
+
+    // Check for block expression with curly braces
+    if (this.match(TokenType.LBRACE)) {
+      const blockStatements: ASTNode[] = [];
+      this.eat(TokenType.LBRACE);
+
+      while (!this.match(TokenType.RBRACE)) {
+        blockStatements.push(this.statement());
+      }
+
+      this.eat(TokenType.RBRACE);
+
+      // Create a block statement node
+      body = {
+        type: "BlockStatement",
+        body: blockStatements,
+      } as ASTNode;
+    } else {
+      // Single expression body
+      body = this.expression();
+    }
 
     return {
       type: "LambdaExpression",

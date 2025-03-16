@@ -126,7 +126,7 @@ describe("Arrays", () => {
   it("should be able to iterate over an array with a while loop", () => {
     const { env } = Jacques.runDebug(`
       array := [1, 2, 3];
-      index := 0;
+      index = 0;
       while (index < array.Length)
         Println(array[index]);
         index++;

@@ -196,6 +196,10 @@ export class Interpreter {
         return this.visitUpdateExpression(node as UpdateExpressionNode, env);
       case "TypeDeclaration":
         return this.evaluateTypeDeclaration(node as TypeDeclarationNode, env);
+      case "BlockStatement":
+        return this.evaluateBlockStatement(node as BlockStatementNode, env);
+      case "EmptyStatement":
+        return null; // Empty statements evaluate to null
       default:
         throw new Error(`Unknown node type: ${node.type}`);
     }
@@ -1202,6 +1206,20 @@ export class Interpreter {
     // Add to environment - type declarations are non-constant by default
     env.define(name, value, false);
     return value;
+  }
+
+  private evaluateBlockStatement(
+    node: BlockStatementNode,
+    env: Environment
+  ): JacquesValue {
+    let result: JacquesValue = new JacquesNumber(0);
+    for (const statement of node.body) {
+      const evalResult = this.evaluate(statement, env);
+      if (evalResult instanceof JacquesValue) {
+        result = evalResult;
+      }
+    }
+    return result;
   }
 
   public execute(): JacquesValue | null {

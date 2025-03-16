@@ -170,6 +170,11 @@ export interface UpdateExpressionNode extends ASTNode {
   prefix: boolean;
 }
 
+export interface BlockStatementNode extends ASTNode {
+  type: "BlockStatement";
+  body: ASTNode[];
+}
+
 export interface TypeNode extends ASTNode {
   type: "Type";
   name: string;
