@@ -5,9 +5,9 @@ import type { JacquesString } from "../src/JacquesValue";
 describe("If Statement", () => {
   it("should be able to have an if statement", () => {
     const { env } = Jacques.runDebug(`
-      if (true) {
+      if true
         result := "Hello, world!";
-      }
+      end;
     `);
 
     expect((env.result as JacquesString).value).toBe("Hello, world!");
@@ -15,11 +15,11 @@ describe("If Statement", () => {
 
   it("should be able to have an if statement with an else statement", () => {
     const { env } = Jacques.runDebug(`
-      if (true) {
+      if true
         result := "Hello, world!";
-      } else {
+      end else
         result := "Goodbye, world!";
-      }
+      end;
     `);
 
     expect((env.result as JacquesString).value).toBe("Hello, world!");
@@ -29,13 +29,13 @@ describe("If Statement", () => {
     const { env } = Jacques.runDebug(`
       bool := true;
 
-      if (bool) {
+      if bool
         result := "Hello, world!";
-      } else if (false) {
+      end else if false
         result := "Goodbye, world!";
-      } else {
+      end else
         result := "Goodbye, world!";
-      }
+      end;
     `);
 
     expect((env.result as JacquesString).value).toBe("Hello, world!");

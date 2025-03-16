@@ -1557,9 +1557,11 @@ export class Parser {
 
     const consequent: ASTNode[] = [];
 
-    while (!this.match(TokenType.END) && !this.match(TokenType.ELSE)) {
+    while (!this.match(TokenType.END)) {
       consequent.push(this.statement());
     }
+
+    this.eat(TokenType.END);
 
     let alternate: ASTNode[] | null = null;
 
@@ -1578,8 +1580,6 @@ export class Parser {
 
         this.eat(TokenType.END);
       }
-    } else {
-      this.eat(TokenType.END);
     }
 
     this.optionalSemicolon();
