@@ -107,6 +107,14 @@ export class JacquesString extends JacquesValue {
   ToString(): JacquesString {
     return this;
   }
+
+  ToNumber(): JacquesNumber {
+    return new JacquesNumber(parseFloat(this.value));
+  }
+
+  ToBoolean(): JacquesBoolean {
+    return new JacquesBoolean(this.value.toLowerCase() === "true");
+  }
 }
 
 export class JacquesBoolean extends JacquesValue {
@@ -139,6 +147,10 @@ export class JacquesBoolean extends JacquesValue {
 
   ToString(): JacquesString {
     return new JacquesString(this.value.toString());
+  }
+
+  ToNumber(): JacquesNumber {
+    return new JacquesNumber(this.value ? 1 : 0);
   }
 }
 
@@ -176,14 +188,10 @@ export class JacquesRecord extends JacquesValue {
     return new Proxy(this, this.proxyHandler);
   }
 
-  Add(key: string, value: JacquesValue): JacquesRecord {
-    if (this.__constant__) {
-      throw new Error("Cannot modify a constant map");
-    }
-
+  Add(key: JacquesString, value: JacquesValue): JacquesRecord {
     return new JacquesRecord({
       ...this.properties,
-      [key]: value,
+      [key.value]: value,
     });
   }
 
@@ -213,7 +221,7 @@ export class JacquesRecord extends JacquesValue {
       }
 
       if (other.properties[key] instanceof JacquesValue) {
-        if (!other.properties[key].Equals(value)) {
+        if (!other.properties[key].Equals(value).value) {
           return new JacquesBoolean(false);
         }
       } else {
@@ -238,9 +246,6 @@ export class JacquesRecord extends JacquesValue {
   }
 
   Set(key: JacquesString, value: JacquesValue): JacquesRecord {
-    if (this.__constant__) {
-      throw new Error("Cannot modify a constant map");
-    }
     return new JacquesRecord({
       ...this.properties,
       [key.value]: value,
@@ -265,9 +270,6 @@ export class JacquesRecord extends JacquesValue {
   }
 
   Merge(other: JacquesRecord): JacquesRecord {
-    if (this.__constant__) {
-      throw new Error("Cannot modify a constant map");
-    }
     return new JacquesRecord({
       ...this.properties,
       ...other.properties,
