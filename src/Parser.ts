@@ -102,8 +102,6 @@ export class Parser {
       return this.classDeclaration();
     } else if (this.match(TokenType.WHILE)) {
       return this.whileStatement();
-    } else if (this.match(TokenType.FOR)) {
-      return this.forStatement();
     } else if (this.match(TokenType.RETURN)) {
       return this.returnStatement();
     } else if (this.match(TokenType.IMPORT)) {
@@ -149,9 +147,30 @@ export class Parser {
     }
   }
 
-  private typeDeclaration(identifier: IdentifierNode): TypeDeclarationNode {
+  private typeDeclaration(
+    identifier: IdentifierNode
+  ): TypeDeclarationNode | AssignmentNode {
     this.eat(TokenType.COLON);
     const typeAnnotation = this.parseType();
+
+    // Check if there's an assignment after the type declaration
+    if (this.match(TokenType.ASSIGN) || this.match(TokenType.CONST_ASSIGN)) {
+      const isConstant = this.currentToken.type === TokenType.CONST_ASSIGN;
+      this.eat(isConstant ? TokenType.CONST_ASSIGN : TokenType.ASSIGN);
+      const right = this.expression();
+      this.optionalSemicolon();
+
+      return {
+        type: "Assignment",
+        isConstant,
+        left: identifier,
+        right,
+        typeAnnotation, // Add the type annotation to the assignment
+      } as AssignmentNode;
+    }
+
+    // Simple type declaration without initialization
+    this.optionalSemicolon();
     return {
       type: "TypeDeclaration",
       name: identifier,
@@ -932,37 +951,32 @@ export class Parser {
     this.eat(TokenType.LBRACE);
     const properties: { key: string; value: ASTNode }[] = [];
 
-    if (!this.match(TokenType.RBRACE)) {
-      // Parse first property
-      const keyToken = this.eat(TokenType.IDENTIFIER);
-      // Type checking with TS
-      if (typeof keyToken.value !== "string") {
-        throw new Error(
-          `Expected object key to be string, got ${typeof keyToken.value}`
-        );
+    while (!this.match(TokenType.RBRACE)) {
+      // Handle property key
+      let key: string;
+
+      // Allow for string literals as keys
+      if (this.match(TokenType.STRING)) {
+        const stringToken = this.eat(TokenType.STRING);
+        if (typeof stringToken.value !== "string") {
+          throw new Error(`Expected string, got ${typeof stringToken.value}`);
+        }
+        key = stringToken.value;
+      } else {
+        // Traditional identifier key
+        const keyNode = this.identifier();
+        key = keyNode.name;
       }
 
-      const key = keyToken.value;
       this.eat(TokenType.COLON);
       const value = this.expression();
+
       properties.push({ key, value });
 
-      // Parse additional properties if any
-      while (this.match(TokenType.COMMA)) {
+      if (this.match(TokenType.COMMA)) {
         this.eat(TokenType.COMMA);
-
-        const keyToken = this.eat(TokenType.IDENTIFIER);
-        // Type checking with TS
-        if (typeof keyToken.value !== "string") {
-          throw new Error(
-            `Expected object key to be string, got ${typeof keyToken.value}`
-          );
-        }
-
-        const key = keyToken.value;
-        this.eat(TokenType.COLON);
-        const value = this.expression();
-        properties.push({ key, value });
+      } else {
+        break;
       }
     }
 

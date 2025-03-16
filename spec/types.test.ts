@@ -93,11 +93,20 @@ describe("Types", () => {
   });
 
   it("should error when reassigning value of different type", () => {
-    const { env } = Jacques.runDebug(`
-      num = 5;
-      num = "Hello";
-    `);
+    // We know the error will be thrown, so we use try/catch
+    let errorMessage = "";
+    try {
+      const { env } = Jacques.runDebug(`
+        num = 5;
+        num = "Hello";
+      `);
+    } catch (e) {
+      if (e instanceof Error) {
+        errorMessage = e.message;
+      }
+    }
 
-    expect((env.num as JacquesNumber).value).toBe(5);
+    // Make sure the error message includes the type error
+    expect(errorMessage).toContain("Type error");
   });
 });
