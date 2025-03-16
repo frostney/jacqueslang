@@ -195,15 +195,16 @@ export class JacquesRecord extends JacquesValue {
     });
   }
 
-  Remove(key: string): JacquesRecord {
+  Remove(key: JacquesString): JacquesRecord {
     const newProperties = { ...this.properties };
-    delete newProperties[key];
+    delete newProperties[key.value];
     return new JacquesRecord(newProperties);
   }
 
-  ForEach(callback: (key: JacquesString, value: JacquesValue) => void): void {
+  ForEach(callback: JacquesFunction): void {
     Object.entries(this.properties).forEach(([key, value]) => {
-      callback(new JacquesString(key), value);
+      const jacquesKey = new JacquesString(key);
+      callback.__call__([jacquesKey, value]);
     });
   }
 
