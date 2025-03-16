@@ -3,8 +3,19 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "lint": "eslint src/**/*.ts",
+    "knip": "knip --strict",
+    "test": "bun test ./spec/*.test.ts"
+  },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@eslint/js": "^9.22.0",
+    "@types/bun": "latest",
+    "@types/node": "^22.13.10",
+    "eslint": "^9.22.0",
+    "knip": "^5.46.0",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.1"
   },
   "peerDependencies": {
     "typescript": "^5"
