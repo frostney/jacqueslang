@@ -1,14 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-require-imports */
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
-/* eslint-disable @typescript-eslint/no-base-to-string */
-
 import type {
   ProgramNode,
   ASTNode,
@@ -52,7 +41,10 @@ import { isMethodDefinitionNode, isPropertyDefinitionNode } from "./ASTNode";
 import { Lexer } from "./Lexer";
 import { Parser } from "./Parser";
 
+import { readFileSync } from "fs";
+
 import { Environment, type EnvironmentRecord } from "./Environment";
+import { convertToString } from "./utils";
 
 // ----- Interpreter -----
 export class Interpreter {
@@ -529,11 +521,11 @@ export class Interpreter {
       if (property instanceof JacquesString) {
         // Handle string property access (like object["key"])
         if (object instanceof JacquesRecord) {
-          return object.properties[property.value] || new JacquesNumber(0);
+          return object.properties[property.value] ?? new JacquesNumber(0);
         } else {
           // For other JacquesValue types, check if the property exists
           if (Object.prototype.hasOwnProperty.call(object, property.value)) {
-            const prop = Reflect.get(object, property.value);
+            const prop = Reflect.get(object, property.value) as JacquesValue;
             if (prop instanceof JacquesValue) {
               return prop;
             }
@@ -549,7 +541,7 @@ export class Interpreter {
         if (index >= 0 && index < object.elements.length) {
           return object.elements[index];
         }
-        throw new Error(`Array index out of bounds: ${index}`);
+        throw new Error(`Array index out of bounds: ${convertToString(index)}`);
       }
       throw new Error("Property accessor must be a string or number");
     }
@@ -584,11 +576,13 @@ export class Interpreter {
 
     // Try to access property directly
     if (propertyName in object) {
-      const prop = (object as any)[propertyName];
+      const prop = (object as unknown as Record<string, JacquesValue>)[
+        propertyName
+      ];
 
       // For functions, bind them to the object
       if (typeof prop === "function") {
-        return prop.bind(object);
+        return prop.bind(object) as JacquesFunction;
       }
 
       return prop;
@@ -644,9 +638,11 @@ export class Interpreter {
   ): JacquesFunction {
     // Get the function name, or use "anonymous" for function expressions
     const functionName = node.name ? node.name.name : "anonymous";
-
     // Create the function implementation that will execute when called
-    const func = function (this: any, ...rawArgs: any[]): JacquesValue | null {
+    const func = function (
+      this: Interpreter,
+      ...rawArgs: JacquesValue[]
+    ): JacquesValue | null {
       // Convert args to JacquesValue array if needed
       const args = Array.isArray(rawArgs[0]) ? rawArgs[0] : rawArgs;
 
@@ -734,8 +730,8 @@ export class Interpreter {
   ): JacquesFunction {
     // Create the function that will be executed when the lambda is called
     const lambdaFunc = function (
-      this: any,
-      ...rawArgs: any[]
+      this: Interpreter,
+      ...rawArgs: JacquesValue[]
     ): JacquesValue | null {
       // Convert args to JacquesValue array if needed
       const args = Array.isArray(rawArgs[0]) ? rawArgs[0] : rawArgs;
@@ -760,7 +756,7 @@ export class Interpreter {
 
           if (i < args.length && args[i] !== undefined) {
             // Use provided argument
-            argValue = args[i];
+            argValue = args[i] as JacquesValue;
           } else if (param.defaultValue) {
             // Use default value if available
             argValue = this.evaluate(param.defaultValue, env) as JacquesValue;
@@ -1008,7 +1004,7 @@ export class Interpreter {
 
     try {
       // Simple module resolution for now - just relative paths
-      const sourceCode = require("fs").readFileSync(sourcePath, "utf8");
+      const sourceCode = readFileSync(sourcePath, "utf8");
       const tokens = new Lexer(sourceCode).tokenize();
       const ast = new Parser(tokens).parse();
       const interpreter = new Interpreter(ast);
@@ -1032,9 +1028,10 @@ export class Interpreter {
       const importedValue = sourceModule[name];
 
       // Set type information if it's a JacquesValue
-      if (importedValue instanceof JacquesValue) {
-        (importedValue as any).__type__ = importedValue.constructor.name;
-      }
+      // if (importedValue instanceof JacquesValue) {
+      //   (importedValue as unknown as JacquesValue).__type__ =
+      //     importedValue.constructor.name;
+      // }
 
       env.define(name, importedValue as JacquesValue, false);
     }
@@ -1082,6 +1079,7 @@ export class Interpreter {
     let result: JacquesValue | ReturnValue | null = null;
 
     // Continue looping while the condition is true
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (true) {
       // Evaluate the condition
       const condition = this.evaluate(node.condition, env);

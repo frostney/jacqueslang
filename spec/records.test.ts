@@ -8,7 +8,7 @@ import {
 } from "../src/JacquesValue";
 
 describe("Records", () => {
-  it("should be able to create an object", () => {
+  it("should be able to create a record", () => {
     const { env } = runDebug(`
       object := { name: "John", age: 30 };
     `);
@@ -19,74 +19,74 @@ describe("Records", () => {
     });
   });
 
-  it("should be able to add a key to a map", () => {
+  it("should be able to add a key to a record", () => {
     const { env } = runDebug(`
-      map := { name: "John", age: 30 };
-      map2 := map.Add("name2", "John");
+      record := { name: "John", age: 30 };
+      record2 := record.Add("name2", "John");
     `);
 
-    expect((env.map as JacquesRecord).properties).toEqual({
+    expect((env.record as JacquesRecord).properties).toEqual({
       name: new JacquesString("John"),
       age: new JacquesNumber(30),
     });
 
-    expect((env.map2 as JacquesRecord).properties).toEqual({
+    expect((env.record2 as JacquesRecord).properties).toEqual({
       name: new JacquesString("John"),
       age: new JacquesNumber(30),
       name2: new JacquesString("John"),
     });
   });
 
-  it("should be able to remove a key from a map", () => {
+  it("should be able to remove a key from a record", () => {
     const { env } = runDebug(`
-      map := { name: "John", age: 30 };
-      map2 := map.Remove("name");
+      record := { name: "John", age: 30 };
+      record2 := record.Remove("name");
     `);
 
-    expect((env.map as JacquesRecord).properties).toEqual({
+    expect((env.record as JacquesRecord).properties).toEqual({
       name: new JacquesString("John"),
       age: new JacquesNumber(30),
     });
 
-    expect((env.map2 as JacquesRecord).properties).toEqual({
+    expect((env.record2 as JacquesRecord).properties).toEqual({
       age: new JacquesNumber(30),
     });
   });
 
-  it("should be able to iterate over a map", () => {
+  it("should be able to iterate over a record", () => {
     const { env } = runDebug(`
-      map := { name: "John", age: 30 };
-      map.ForEach((key, value) => Println(key, value));
+      record := { name: "John", age: 30 };
+      record.ForEach((key, value) => Println(key, value));
     `);
 
-    expect((env.map as JacquesRecord).properties).toEqual({
+    expect((env.record as JacquesRecord).properties).toEqual({
       name: new JacquesString("John"),
       age: new JacquesNumber(30),
     });
   });
 
-  it("should be able to check if a map contains a key", () => {
+  it("should be able to check if a record contains a key", () => {
     const { env } = runDebug(`
-      map := { name: "John", age: 30 };
-      result := map.ContainsKey("name");
+      record := { name: "John", age: 30 };
+      result := record.ContainsKey("name");
     `);
 
     expect((env.result as JacquesBoolean).value).toBe(true);
   });
 
-  it("should be able to check if a map contains a value", () => {
+  it("should be able to check if a record contains a value", () => {
     const { env } = runDebug(`
-      map := { name: "John", age: 30 };
-      result := map.ContainsValue("John");
+      record := { name: "John", age: 30 };
+      result := record.ContainsValue("John");
     `);
 
     expect((env.result as JacquesBoolean).value).toBe(true);
   });
 
-  it("should be able to get the size of a map", () => {
+  it("should be able to get the size of a record", () => {
     const { env } = runDebug(`
-      map := { name: "John", age: 30 };
-      result := map.Size;
+      record := { name: "John", age: 30 };
+      result := record.Size;
     `);
 
     expect((env.result as JacquesNumber).value).toBe(2);
@@ -94,24 +94,31 @@ describe("Records", () => {
 
   it("allows nested maps", () => {
     const { env } = runDebug(`
-      map := { name: "John", age: 30, address: { city: "New York", country: "USA" } };
+      record := { name: "John", age: 30, address: { city: "New York", country: "USA" } };
     `);
 
-    expect((env.map as JacquesRecord).properties).toEqual({
-      name: new JacquesString("John"),
-      age: new JacquesNumber(30),
-      address: new JacquesRecord({
-        city: new JacquesString("New York"),
-        country: new JacquesString("USA"),
-      }),
-    });
+    const record = env.record as JacquesRecord;
+    expect(record.properties.name instanceof JacquesString).toBe(true);
+    expect((record.properties.name as JacquesString).value).toBe("John");
+
+    expect(record.properties.age instanceof JacquesNumber).toBe(true);
+    expect((record.properties.age as JacquesNumber).value).toBe(30);
+
+    expect(record.properties.address instanceof JacquesRecord).toBe(true);
+    const address = record.properties.address as JacquesRecord;
+
+    expect(address.properties.city instanceof JacquesString).toBe(true);
+    expect((address.properties.city as JacquesString).value).toBe("New York");
+
+    expect(address.properties.country instanceof JacquesString).toBe(true);
+    expect((address.properties.country as JacquesString).value).toBe("USA");
   });
 
-  it("should be able to merge two maps", () => {
+  it("should be able to merge two records", () => {
     const { env } = runDebug(`
-      map1 := { name: "John", age: 30 };
-      map2 := { name2: "Jane", age2: 25 };
-      result := map1.Merge(map2);
+      record1 := { name: "John", age: 30 };
+      record2 := { name2: "Jane", age2: 25 };
+      result := record1.Merge(record2);
     `);
 
     expect((env.result as JacquesRecord).properties).toEqual({
@@ -122,30 +129,30 @@ describe("Records", () => {
     });
   });
 
-  it("should be able to check if a map is equal to another map", () => {
+  it("should be able to check if a record is equal to another record", () => {
     const { env } = runDebug(`
-      map1 := { name: "John", age: 30 };
-      map2 := { name: "John", age: 30 };
-      result := map1.Equals(map2);
+      record1 := { name: "John", age: 30 };
+      record2 := { name: "John", age: 30 };
+      result := record1.Equals(record2);
     `);
 
     expect((env.result as JacquesBoolean).value).toBe(true);
   });
 
-  it("should be able to check if a map is not equal to another map", () => {
+  it("should be able to check if a record is not equal to another record", () => {
     const { env } = runDebug(`
-      map1 := { name: "John", age: 30 };
-      map2 := { name: "Jane", age: 25 };
-      result := map1.NotEquals(map2);
+      record1 := { name: "John", age: 30 };
+      record2 := { name: "Jane", age: 25 };
+      result := record1.NotEquals(record2);
     `);
 
     expect((env.result as JacquesBoolean).value).toBe(true);
   });
 
-  it("should be able to convert a map to a string", () => {
+  it("should be able to convert a record to a string", () => {
     const { env } = runDebug(`
-      map := { name: "John", age: 30 };
-      result := map.ToString();
+      record := { name: "John", age: 30 };
+      result := record.ToString();
     `);
 
     expect((env.result as JacquesString).value).toBe(
@@ -153,11 +160,11 @@ describe("Records", () => {
     );
   });
 
-  describe("should be able to get a value from a map", () => {
+  describe("should be able to get a value from a record", () => {
     it("using the `Get` method", () => {
       const { env } = runDebug(`
-        map := { name: "John", age: 30 };
-        result := map.Get("name");
+        record := { name: "John", age: 30 };
+        result := record.Get("name");
       `);
 
       expect((env.result as JacquesString).value).toBe("John");
@@ -165,8 +172,8 @@ describe("Records", () => {
 
     it("using the `[]` operator", () => {
       const { env } = runDebug(`
-        map := { name: "John", age: 30 };
-        result := map["name"];
+        record := { name: "John", age: 30 };
+        result := record["name"];
       `);
 
       expect((env.result as JacquesString).value).toBe("John");
@@ -174,27 +181,27 @@ describe("Records", () => {
 
     it("using the `.` operator", () => {
       const { env } = runDebug(`
-        map := { name: "John", age: 30 };
-        result := map.name;
+        record := { name: "John", age: 30 };
+        result := record.name;
       `);
 
       expect((env.result as JacquesString).value).toBe("John");
     });
   });
 
-  describe("should be able to set a value in a map", () => {
+  describe("should be able to set a value in a record", () => {
     it("using the `Set` method", () => {
       const { env } = runDebug(`
-        map := { name: "John", age: 30 };
-        map2 := map.Set("name", "Jane");
+        record := { name: "John", age: 30 };
+        record2 := record.Set("name", "Jane");
       `);
 
-      expect((env.map as JacquesRecord).properties).toEqual({
+      expect((env.record as JacquesRecord).properties).toEqual({
         name: new JacquesString("John"),
         age: new JacquesNumber(30),
       });
 
-      expect((env.map2 as JacquesRecord).properties).toEqual({
+      expect((env.record2 as JacquesRecord).properties).toEqual({
         name: new JacquesString("Jane"),
         age: new JacquesNumber(30),
       });
@@ -203,8 +210,8 @@ describe("Records", () => {
 
   it("should be able to convert to JSON", () => {
     const { env } = runDebug(`
-      map := { name: "John", age: 30 };
-      result := map.ToJSON();
+      record := { name: "John", age: 30 };
+      result := record.ToJSON();
     `);
 
     expect((env.result as JacquesString).value).toBe(
