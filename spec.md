@@ -15,7 +15,7 @@
 
 ## Variables
 
-Variables are immutable by default and cannot be reassigned or modified. If you need to modify a variable, declare it with `=` instead of `:=`. Variables need to be initialized when declared. Constant variables need to have
+Variables are immutable by default and cannot be reassigned or modified. If you need to modify a variable, declare it with `=` instead of `:=`. Variables need to be initialized when declared.
 
 ```pascal
 num := 10;
@@ -399,8 +399,8 @@ Constant properties can be defined with `:=`
 
 ```pascal
 class Person
-    const name := String('Jacques');
-    const age := Number(20);
+    name := String('Jacques');
+    age := Number(20);
 end;
 
 Println(Person.name); // "Jacques"
